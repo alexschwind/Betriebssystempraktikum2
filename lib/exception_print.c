@@ -4,7 +4,6 @@
 
 #include <lib/kprintf.h>
 
-#include <inttypes.h>
 #include <stddef.h>
 
 static void print_psr(unsigned int psr);
@@ -20,35 +19,40 @@ struct mode_regs read_mode_specific_registers(void)
 }
 
 
-#define r0 (frame->r[0])
-#define r1 (frame->r[1])
-#define r2 (frame->r[2])
-#define r3 (frame->r[3])
-#define r4 (frame->r[4])
-#define r5 (frame->r[5])
-#define r6 (frame->r[6])
-#define r7 (frame->r[7])
-#define r8 (frame->r[8])
-#define r9 (frame->r[9])
-#define r10 (frame->r[10])
-#define r11 (frame->r[11])
-#define r12 (frame->r[12])
+#define r0 ((unsigned int)(frame->r[0]))
+#define r1 ((unsigned int)(frame->r[1]))
+#define r2 ((unsigned int)(frame->r[2]))
+#define r3 ((unsigned int)(frame->r[3]))
+#define r4 ((unsigned int)(frame->r[4]))
+#define r5 ((unsigned int)(frame->r[5]))
+#define r6 ((unsigned int)(frame->r[6]))
+#define r7 ((unsigned int)(frame->r[7]))
+#define r8 ((unsigned int)(frame->r[8]))
+#define r9 ((unsigned int)(frame->r[9]))
+#define r10 ((unsigned int)(frame->r[10]))
+#define r11 ((unsigned int)(frame->r[11]))
+#define r12 ((unsigned int)(frame->r[12]))
 
 void print_exception_infos(struct exception_frame *frame,
 		const struct exception_info *info)
 {
 	kprintf("############ EXCEPTION ############\n");
-	kprintf("%s an Adresse: 0x%08x\n", info->exception_name, info->exception_source_addr);
+	kprintf("%s an Adresse: 0x%08x\n", info->exception_name,
+	    (unsigned int)info->exception_source_addr);
 	if (info->is_data_abort) {
 		const char *dfsr_description = get_fsr_description(info->data_fault_status_register);
-		kprintf("Data Fault Status Register: 0x%08x -> %s\n", info->data_fault_status_register, dfsr_description);
-		kprintf("Data Fault Adress Register: 0x%08x\n", info->data_fault_address_register);
+		kprintf("Data Fault Status Register: 0x%08x -> %s\n",
+		    (unsigned int)info->data_fault_status_register, dfsr_description);
+		kprintf("Data Fault Adress Register: 0x%08x\n",
+		    (unsigned int)info->data_fault_address_register);
 	}
 
 	if (info->is_prefetch_abort) {
 		const char *ifsr_description = get_fsr_description(info->instruction_fault_status_register);
-		kprintf("Instruction Fault Status Register: 0x%08x -> %s\n", info->instruction_fault_status_register, ifsr_description);
-		kprintf("Instruction Fault Adress Register: 0x%08x\n", info->instruction_fault_address_register);
+		kprintf("Instruction Fault Status Register: 0x%08x -> %s\n",
+		    (unsigned int)info->instruction_fault_status_register, ifsr_description);
+		kprintf("Instruction Fault Adress Register: 0x%08x\n",
+		    (unsigned int)info->instruction_fault_address_register);
 	}
 
 	kprintf("\n>> Registerschnappschuss <<\n");
@@ -61,16 +65,21 @@ void print_exception_infos(struct exception_frame *frame,
 	struct mode_regs mode_regs = read_mode_specific_registers();
 
 	kprintf("\n>> Modusspezifische Register <<\n");
-	kprintf("User/System | LR: 0x%08x | SP: 0x%08x | CPSR: ", mode_regs.user_lr, mode_regs.user_sp);
-	print_psr(frame->cpsr);
-	kprintf("\nIRQ         | LR: 0x%08x | SP: 0x%08x | SPSR: ", mode_regs.irq_lr, mode_regs.irq_sp);
-	print_psr(mode_regs.irq_spsr);
-	kprintf("\nAbort       | LR: 0x%08x | SP: 0x%08x | SPSR: ", mode_regs.abort_lr, mode_regs.abort_sp);
-	print_psr(mode_regs.abort_spsr);
-	kprintf("\nUndefined   | LR: 0x%08x | SP: 0x%08x | SPSR: ", mode_regs.undefined_lr, mode_regs.undefined_sp);
-	print_psr(mode_regs.undefined_spsr);
-	kprintf("\nSupervisor  | LR: 0x%08x | SP: 0x%08x | SPSR: ", mode_regs.supervisor_lr, mode_regs.supervisor_sp);
-	print_psr(mode_regs.supervisor_spsr);
+	kprintf("User/System | LR: 0x%08x | SP: 0x%08x | CPSR: ",
+	    (unsigned int)mode_regs.user_lr, (unsigned int)mode_regs.user_sp);
+	print_psr((unsigned int)frame->cpsr);
+	kprintf("\nIRQ         | LR: 0x%08x | SP: 0x%08x | SPSR: ",
+	    (unsigned int)mode_regs.irq_lr, (unsigned int)mode_regs.irq_sp);
+	print_psr((unsigned int)mode_regs.irq_spsr);
+	kprintf("\nAbort       | LR: 0x%08x | SP: 0x%08x | SPSR: ",
+	    (unsigned int)mode_regs.abort_lr, (unsigned int)mode_regs.abort_sp);
+	print_psr((unsigned int)mode_regs.abort_spsr);
+	kprintf("\nUndefined   | LR: 0x%08x | SP: 0x%08x | SPSR: ",
+	    (unsigned int)mode_regs.undefined_lr, (unsigned int)mode_regs.undefined_sp);
+	print_psr((unsigned int)mode_regs.undefined_spsr);
+	kprintf("\nSupervisor  | LR: 0x%08x | SP: 0x%08x | SPSR: ",
+	    (unsigned int)mode_regs.supervisor_lr, (unsigned int)mode_regs.supervisor_sp);
+	print_psr((unsigned int)mode_regs.supervisor_spsr);
 	kprintf("\n");
 }
 
