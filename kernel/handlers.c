@@ -7,6 +7,8 @@
 #include <arch/bsp/irq.h>
 #include <arch/bsp/systimer.h>
 
+#include <config.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -30,6 +32,8 @@ void undefined_handler(struct exception_frame *frame)
     print_exception_infos(frame, &info);
 
     panic();
+    for (;;) {
+    }
 }
 
 void svc_handler(struct exception_frame *frame)
@@ -42,6 +46,8 @@ void svc_handler(struct exception_frame *frame)
     print_exception_infos(frame, &info);
 
     panic();
+    for (;;) {
+    }
 }
 
 void prefetch_abort_handler(struct exception_frame *frame)
@@ -57,6 +63,8 @@ void prefetch_abort_handler(struct exception_frame *frame)
     print_exception_infos(frame, &info);
 
     panic();
+    for (;;) {
+    }
 }
 
 void data_abort_handler(struct exception_frame *frame)
@@ -72,6 +80,8 @@ void data_abort_handler(struct exception_frame *frame)
     print_exception_infos(frame, &info);
 
     panic();
+    for (;;) {
+    }
 }
 
 void irq_handler(struct exception_frame *frame)
@@ -79,7 +89,7 @@ void irq_handler(struct exception_frame *frame)
     if (irq_get_systimer_pending(1)) {
         // Handle Timer IRQ
         systimer_clear_match(1);
-        systimer_increment_compare(1, 500000000);
+        systimer_increment_compare(1, TIMER_INTERVAL);
         kprintf("!\n");
     }
 
@@ -103,6 +113,8 @@ void irq_handler(struct exception_frame *frame)
 static void panic(void)
 {
     __asm__ volatile("cpsid if" : : : "memory");
+
+    kprintf("\4");
 
     for (;;) {
         __asm__ volatile("wfi" ::: "memory");

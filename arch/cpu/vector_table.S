@@ -32,6 +32,7 @@
 .macro EXCEPTION_TRAMP_RETURN label, handler
 .global \label
 \label:
+	sub lr, lr, #4
 	stmdb sp!, {r0-r12, lr}
 	mrs r1, spsr
 	mrs r2, cpsr
@@ -44,7 +45,7 @@
 	msr spsr_cxsf, r1
 	add sp, sp, #8
 	ldmia sp!, {r0-r12, lr}
-	subs pc, lr, #4
+	movs pc, lr
 .endm
 
 /* Tatsächliche Vector Table */
