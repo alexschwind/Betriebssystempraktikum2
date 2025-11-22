@@ -13,6 +13,7 @@ struct gpio {
 
 extern volatile struct gpio *const gpio;
 
-void gpio_set_alt_function(unsigned int pin, unsigned int alt_function); // Set the alt function of a GPIO pin 
+void gpio_set_alt_function(unsigned int pin,
+			   unsigned int alt_function); // Set the alt function of a GPIO pin
 
 #endif

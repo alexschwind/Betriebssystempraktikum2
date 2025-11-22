@@ -26,13 +26,13 @@ struct mode_regs {
 
 struct exception_info {
 	const char *exception_name;
-	uint32_t exception_source_addr;
-	bool is_data_abort;
-	bool is_prefetch_abort;
-	uint32_t data_fault_status_register;
-	uint32_t data_fault_address_register;
-	uint32_t instruction_fault_status_register;
-	uint32_t instruction_fault_address_register;
+	uint32_t    exception_source_addr;
+	bool	    is_data_abort;
+	bool	    is_prefetch_abort;
+	uint32_t    data_fault_status_register;
+	uint32_t    data_fault_address_register;
+	uint32_t    instruction_fault_status_register;
+	uint32_t    instruction_fault_address_register;
 };
 
 struct mode_regs read_mode_specific_registers(void);

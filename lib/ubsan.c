@@ -12,7 +12,6 @@
 
 void kprintf [[gnu::format(printf, 1, 2)]] (const char *format, ...);
 
-
 // structs copyed form the linux kernel
 // https://github.com/torvalds/linux/blob/master/lib/ubsan.h
 

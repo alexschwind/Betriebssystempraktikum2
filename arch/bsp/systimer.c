@@ -24,20 +24,20 @@ void systimer_increment_compare(unsigned int timer, unsigned int interval)
 	}
 
 	unsigned int now = systimer->clo;
-    switch (timer) {
-        case 0:
-            systimer->c0 = now + interval;
-            return;
-        case 1:
-            systimer->c1 = now + interval;
-            return;
-        case 2:
-            systimer->c2 = now + interval;
-            return;
-        case 3:
-            systimer->c3 = now + interval;
-            return;
-        default:
-            return; // Should never reach here due to earlier check
-    }
+	switch (timer) {
+	case 0:
+		systimer->c0 = now + interval;
+		return;
+	case 1:
+		systimer->c1 = now + interval;
+		return;
+	case 2:
+		systimer->c2 = now + interval;
+		return;
+	case 3:
+		systimer->c3 = now + interval;
+		return;
+	default:
+		return; // Should never reach here due to earlier check
+	}
 }
