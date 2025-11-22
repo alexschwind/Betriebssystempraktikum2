@@ -56,10 +56,10 @@ _bsprak:
 	ldr sp, =__stack_abt_top
 	cps	#0x1b                 /* Switch to UND mode */
 	ldr sp, =__stack_und_top
-
 	cps	#0x1f                 /* Switch to system mode */
 	ldr sp, =__stack_sys_top
-	/* Wir sind jetzt in System Mode */
+
+	cps	#0x13                 /* Run kernel in supervisor mode */
 	
 	/* Exception Vector Table adresse setzen */
 	ldr r0, =_vector_table
