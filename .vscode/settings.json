@@ -1,0 +1,7 @@
+{
+    "makefile.configureOnOpen": true,
+    "files.associations": {
+        "config.h": "c",
+        "exception_print.h": "c"
+    }
+}
