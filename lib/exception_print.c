@@ -7,84 +7,69 @@
 #include <inttypes.h>
 #include <stddef.h>
 
-static void	   print_psr(unsigned int psr);
+static void print_psr(unsigned int psr);
 static const char *get_fsr_description(unsigned int fsr);
 static const char *psr_mode_name(unsigned int psr);
-extern void	   read_mode_specific_registers_hw(struct mode_regs *out);
+extern void read_mode_specific_registers_hw(struct mode_regs *out);
 
 struct mode_regs read_mode_specific_registers(void)
 {
-	struct mode_regs regs = { 0 };
+	struct mode_regs regs = {0};
 	read_mode_specific_registers_hw(&regs);
 	return regs;
 }
 
-#define r0  (frame->r[0])
-#define r1  (frame->r[1])
-#define r2  (frame->r[2])
-#define r3  (frame->r[3])
-#define r4  (frame->r[4])
-#define r5  (frame->r[5])
-#define r6  (frame->r[6])
-#define r7  (frame->r[7])
-#define r8  (frame->r[8])
-#define r9  (frame->r[9])
+
+#define r0 (frame->r[0])
+#define r1 (frame->r[1])
+#define r2 (frame->r[2])
+#define r3 (frame->r[3])
+#define r4 (frame->r[4])
+#define r5 (frame->r[5])
+#define r6 (frame->r[6])
+#define r7 (frame->r[7])
+#define r8 (frame->r[8])
+#define r9 (frame->r[9])
 #define r10 (frame->r[10])
 #define r11 (frame->r[11])
 #define r12 (frame->r[12])
 
-void print_exception_infos(struct exception_frame *frame, const struct exception_info *info)
+void print_exception_infos(struct exception_frame *frame,
+		const struct exception_info *info)
 {
 	kprintf("############ EXCEPTION ############\n");
-	kprintf("%s an Adresse: 0x%08" PRIx32 "\n", info->exception_name,
-		info->exception_source_addr);
+	kprintf("%s an Adresse: 0x%08x\n", info->exception_name, info->exception_source_addr);
 	if (info->is_data_abort) {
-		const char *dfsr_description =
-			get_fsr_description(info->data_fault_status_register);
-		kprintf("Data Fault Status Register: 0x%08" PRIx32 " -> %s\n",
-			info->data_fault_status_register, dfsr_description);
-		kprintf("Data Fault Adress Register: 0x%08" PRIx32 "\n",
-			info->data_fault_address_register);
+		const char *dfsr_description = get_fsr_description(info->data_fault_status_register);
+		kprintf("Data Fault Status Register: 0x%08x -> %s\n", info->data_fault_status_register, dfsr_description);
+		kprintf("Data Fault Adress Register: 0x%08x\n", info->data_fault_address_register);
 	}
 
 	if (info->is_prefetch_abort) {
-		const char *ifsr_description =
-			get_fsr_description(info->instruction_fault_status_register);
-		kprintf("Instruction Fault Status Register: 0x%08" PRIx32 " -> %s\n",
-			info->instruction_fault_status_register, ifsr_description);
-		kprintf("Instruction Fault Adress Register: 0x%08" PRIx32 "\n",
-			info->instruction_fault_address_register);
+		const char *ifsr_description = get_fsr_description(info->instruction_fault_status_register);
+		kprintf("Instruction Fault Status Register: 0x%08x -> %s\n", info->instruction_fault_status_register, ifsr_description);
+		kprintf("Instruction Fault Adress Register: 0x%08x\n", info->instruction_fault_address_register);
 	}
 
 	kprintf("\n>> Registerschnappschuss <<\n");
-	kprintf("R0: 0x%08" PRIx32 "  R5: 0x%08" PRIx32 "  R10: 0x%08" PRIx32 "\n", r0, r5, r10);
-	kprintf("R1: 0x%08" PRIx32 "  R6: 0x%08" PRIx32 "  R11: 0x%08" PRIx32 "\n", r1, r6, r11);
-	kprintf("R2: 0x%08" PRIx32 "  R7: 0x%08" PRIx32 "  R12: 0x%08" PRIx32 "\n", r2, r7, r12);
-	kprintf("R3: 0x%08" PRIx32 "  R8: 0x%08" PRIx32 "\n", r3, r8);
-	kprintf("R4: 0x%08" PRIx32 "  R9: 0x%08" PRIx32 "\n", r4, r9);
+	kprintf("R0: 0x%08x  R5: 0x%08x  R10: 0x%08x\n", r0, r5, r10);
+	kprintf("R1: 0x%08x  R6: 0x%08x  R11: 0x%08x\n", r1, r6, r11);
+	kprintf("R2: 0x%08x  R7: 0x%08x  R12: 0x%08x\n", r2, r7, r12);
+	kprintf("R3: 0x%08x  R8: 0x%08x\n", r3, r8);
+	kprintf("R4: 0x%08x  R9: 0x%08x\n", r4, r9);
 
 	struct mode_regs mode_regs = read_mode_specific_registers();
 
 	kprintf("\n>> Modusspezifische Register <<\n");
-	kprintf("User/System | LR: 0x%08" PRIx32 " | SP: 0x%08" PRIx32 " | CPSR: ",
-		mode_regs.user_lr,
-		mode_regs.user_sp);
+	kprintf("User/System | LR: 0x%08x | SP: 0x%08x | CPSR: ", mode_regs.user_lr, mode_regs.user_sp);
 	print_psr(frame->cpsr);
-	kprintf("\nIRQ         | LR: 0x%08" PRIx32 " | SP: 0x%08" PRIx32 " | SPSR: ",
-		mode_regs.irq_lr,
-		mode_regs.irq_sp);
+	kprintf("\nIRQ         | LR: 0x%08x | SP: 0x%08x | SPSR: ", mode_regs.irq_lr, mode_regs.irq_sp);
 	print_psr(mode_regs.irq_spsr);
-	kprintf("\nAbort       | LR: 0x%08" PRIx32 " | SP: 0x%08" PRIx32 " | SPSR: ",
-		mode_regs.abort_lr,
-		mode_regs.abort_sp);
+	kprintf("\nAbort       | LR: 0x%08x | SP: 0x%08x | SPSR: ", mode_regs.abort_lr, mode_regs.abort_sp);
 	print_psr(mode_regs.abort_spsr);
-	kprintf("\nUndefined   | LR: 0x%08" PRIx32 " | SP: 0x%08" PRIx32 " | SPSR: ",
-		mode_regs.undefined_lr,
-		mode_regs.undefined_sp);
+	kprintf("\nUndefined   | LR: 0x%08x | SP: 0x%08x | SPSR: ", mode_regs.undefined_lr, mode_regs.undefined_sp);
 	print_psr(mode_regs.undefined_spsr);
-	kprintf("\nSupervisor  | LR: 0x%08" PRIx32 " | SP: 0x%08" PRIx32 " | SPSR: ",
-		mode_regs.supervisor_lr,
-		mode_regs.supervisor_sp);
+	kprintf("\nSupervisor  | LR: 0x%08x | SP: 0x%08x | SPSR: ", mode_regs.supervisor_lr, mode_regs.supervisor_sp);
 	print_psr(mode_regs.supervisor_spsr);
 	kprintf("\n");
 }
@@ -107,23 +92,32 @@ void print_exception_infos(struct exception_frame *frame, const struct exception
 
 static void print_psr(unsigned int psr)
 {
-	kprintf("%c%c%c%c %c %c%c%c", PSR_FLAG(psr, 31) ? 'N' : '_', PSR_FLAG(psr, 30) ? 'Z' : '_',
-		PSR_FLAG(psr, 29) ? 'C' : '_', PSR_FLAG(psr, 28) ? 'V' : '_',
-		PSR_FLAG(psr, 9) ? 'E' : '_', PSR_FLAG(psr, 7) ? 'I' : '_',
-		PSR_FLAG(psr, 6) ? 'F' : '_', PSR_FLAG(psr, 5) ? 'T' : '_');
+	kprintf("%c%c%c%c %c %c%c%c",
+		PSR_FLAG(psr, 31) ? 'N' : '_',
+		PSR_FLAG(psr, 30) ? 'Z' : '_',
+		PSR_FLAG(psr, 29) ? 'C' : '_',
+		PSR_FLAG(psr, 28) ? 'V' : '_',
+		PSR_FLAG(psr, 9) ? 'E' : '_',
+		PSR_FLAG(psr, 7) ? 'I' : '_',
+		PSR_FLAG(psr, 6) ? 'F' : '_',
+		PSR_FLAG(psr, 5) ? 'T' : '_');
 
 	kprintf(" %s", psr_mode_name(psr));
-	kprintf(" 0x%08" PRIx32, (uint32_t)psr);
+	kprintf(" 0x%08x", psr);
 }
 
 #undef PSR_FLAG
 
 static const char *psr_mode_name(unsigned int psr)
 {
-	static char		 padded[12];
+	static char padded[12];
 	static const char *const mode_names[32] = {
-		[0b10000] = "      User", [0b10001] = "       FIQ", [0b10010] = "       IRQ",
-		[0b10011] = "Supervisor", [0b10111] = "     Abort", [0b11011] = " Undefined",
+		[0b10000] = "      User",
+		[0b10001] = "       FIQ",
+		[0b10010] = "       IRQ",
+		[0b10011] = "Supervisor",
+		[0b10111] = "     Abort",
+		[0b11011] = " Undefined",
 		[0b11111] = "    System",
 	};
 
@@ -133,7 +127,7 @@ static const char *psr_mode_name(unsigned int psr)
 	}
 
 	unsigned int width = 8U;
-	unsigned int len   = 0U;
+	unsigned int len = 0U;
 	while (name[len] != '\0') {
 		++len;
 	}
@@ -144,8 +138,7 @@ static const char *psr_mode_name(unsigned int psr)
 		padded[pos++] = ' ';
 	}
 
-	for (unsigned int i = 0U; name[i] != '\0' && pos < (unsigned int)(sizeof(padded) - 1U);
-	     ++i) {
+	for (unsigned int i = 0U; name[i] != '\0' && pos < (unsigned int)(sizeof(padded) - 1U); ++i) {
 		padded[pos++] = name[i];
 	}
 
@@ -182,8 +175,7 @@ static const char *get_fsr_description(unsigned int fsr)
 	};
 
 	unsigned int status = (fsr & 0xFU) | ((fsr >> 6U) & 0x10U);
-	if (status >= (sizeof(fsr_sources) / sizeof(fsr_sources[0])) ||
-	    fsr_sources[status] == NULL) {
+	if (status >= (sizeof(fsr_sources) / sizeof(fsr_sources[0])) || fsr_sources[status] == NULL) {
 		return "Invalid fault status register value";
 	}
 
