@@ -1,3 +1,4 @@
+build/**
 build/
 submission.tar.gz
 .vscode/
