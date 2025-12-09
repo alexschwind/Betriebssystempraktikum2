@@ -5,14 +5,13 @@
 #include <arch/bsp/irq.h>
 
 #include <kernel/handlers.h>
+#include <kernel/scheduler.h>
 
 #include <lib/kprintf.h>
 
 #include <tests/regcheck.h>
 
 #include <stdbool.h>
-
-static void subprogram [[noreturn]] (void);
 
 static void do_data_abort(void);
 static void do_prefetch_abort(void);
@@ -22,60 +21,18 @@ static void do_undefined_inst(void);
 void start_kernel [[noreturn]] (void);
 void start_kernel [[noreturn]] (void)
 {
-	// UART Initialization
+	// called from kernel.S
+	// interrupts are disabled
+	// in supervisor mode
+
 	uart_init();
 	uart_enable_rx_interrupt();
 	irq_enable_uart();
-
-	// Systimer Initialization
-	systimer_increment_compare(1, TIMER_INTERVAL);
 	irq_enable_systimer(1);
-
-	__asm__ volatile("cpsie i" ::: "memory"); // Enable irq interrupts
 
 	kprintf("=== Betriebssystem gestartet ===\n");
 	test_kernel();
-	while (true) {
-		char c = uart_getc();
-		switch (c) {
-		case 'd':
-			irq_debug = !irq_debug;
-			break;
-		case 'a':
-			do_data_abort();
-			break;
-		case 'p':
-			do_prefetch_abort();
-			break;
-		case 's':
-			do_supervisor_call();
-			break;
-		case 'u':
-			do_undefined_inst();
-			break;
-		case 'c':
-			register_checker();
-			break;
-		case 'e':
-			subprogram();
-		default:
-			kprintf("Unknown input: %c\n", c);
-			break;
-		}
-	}
-}
-
-static void subprogram [[noreturn]] (void)
-{
-	while (true) {
-		char c = uart_getc();
-		for (unsigned int n = 0; n < PRINT_COUNT; n++) {
-			uart_putc(c);
-			volatile unsigned int i = 0;
-			for (; i < BUSY_WAIT_COUNTER; i++) {
-			}
-		}
-	}
+	scheduler_run(); // never returns
 }
 
 static void do_data_abort(void)

@@ -90,7 +90,7 @@ void irq_handler(struct exception_frame *frame)
 		// Handle Timer IRQ
 		systimer_clear_match(1);
 		systimer_increment_compare(1, TIMER_INTERVAL);
-		kprintf("!\n");
+		kprintf("!");
 	}
 
 	if (irq_get_uart_pending()) {

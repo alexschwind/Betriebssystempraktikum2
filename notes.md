@@ -16,21 +16,21 @@ Robin-Scheduler).
 6. den Ausnahme-Handler so anzupassen, dass kein Thread das Betriebssystem zum Absturz bringen kann.
 
 ## Details
-- ✅ Es gibt eine Threadverwaltung, die mindestens 32 Threads unterstützt (Ein Idel-Thread zählt zu diesen 32 Threads, also müssen nur 31 reguläre Threads unterstützt werden.) 
+- Es gibt eine Threadverwaltung, die mindestens 32 Threads unterstützt (Ein Idel-Thread zählt zu diesen 32 Threads, also müssen nur 31 reguläre Threads unterstützt werden.) 
 
-- ✅ Threads können über void scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size), erstellt werden, wobei func die Einstiegs-Funktion des neuen Threads ist, arg ein Pointer auf die Argumente der Länge arg_size, ist, die auf den Stack des neuen Threads zu kopieren sind
+- Threads können über void scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size), erstellt werden, wobei func die Einstiegs-Funktion des neuen Threads ist, arg ein Pointer auf die Argumente der Länge arg_size, ist, die auf den Stack des neuen Threads zu kopieren sind
 
-- ✅ Wenn kein Thread erstellt werden konnte, weil bereits alle Threads verwendet sind, wird „Could not create thread.” ausgegeben und kein Aktion getätigt
+- Wenn kein Thread erstellt werden konnte, weil bereits alle Threads verwendet sind, wird „Could not create thread.” ausgegeben und kein Aktion getätigt
 
-- ✅ Die Einstiegs-Funktion des Threads kriegt beim Start einen Pointer auf das auf den Stack kopierte Argument übergeben
+- Die Einstiegs-Funktion des Threads kriegt beim Start einen Pointer auf das auf den Stack kopierte Argument übergeben
 
-- ✅ Jeder Thread hat einen eigenen Stack, welcher mindestens 1KiB groß ist 
+- Jeder Thread hat einen eigenen Stack, welcher mindestens 1KiB groß ist 
 
-- ✅ Es gibt eine Funktion void syscall_exit(void), die einen svc ausführt. Jeder svc verursacht, dass der Thread, der diesen ausführte, beendet wird (Wenn ein Thread beendet wird soll kein Registerdump ausgegeben werden.)
+- Es gibt eine Funktion void syscall_exit(void), die einen svc ausführt. Jeder svc verursacht, dass der Thread, der diesen ausführte, beendet wird (Wenn ein Thread beendet wird soll kein Registerdump ausgegeben werden.)
 
-- ✅ Threads werden beendet, wenn diese die Einstiegs-Funktion beenden, auch wenn, hierbei nicht explizit syscall_exit aufgerufen wird
+- Threads werden beendet, wenn diese die Einstiegs-Funktion beenden, auch wenn, hierbei nicht explizit syscall_exit aufgerufen wird
 
-- ✅ Threads werden von einem Scheduler regelmäßig ausgeführt. Dabei ist zu beachten, dass
+- Threads werden von einem Scheduler regelmäßig ausgeführt. Dabei ist zu beachten, dass
     - die verfügbare CPU-Zeit gleichmäßig zwischen den Threads aufgeteilt wird
     - die Länge der Zeitscheiben von TIMER_INTERVAL aus config.h abhängig ist
     - der Scheduler nicht unnötig wartet, d.h. wenn ein Thread ausgeführt werden kann, dieser ausgeführt wird
