@@ -1,78 +1,51 @@
 .section .vectors, "ax"
-
 .balign 64
-
 .global _vector_table
-
 .extern undefined_handler
 .extern svc_handler
 .extern prefetch_abort_handler
 .extern data_abort_handler
 .extern irq_handler
 
-/* Makros für Prolog und Epilog von Handler */
-.macro EXCEPTION_TRAMP label, handler, lr_adjust
-.global \label
-\label:
-.if \lr_adjust
-	sub lr, lr, #\lr_adjust
-.endif
-	stmdb sp!, {r0-r12, lr}
-	mrs r1, spsr
-	mrs r2, cpsr
-	sub sp, sp, #8
-	str r1, [sp]
-	str r2, [sp, #4]
-	mov r0, sp
-	bl \handler
-1:
-	b 1b
-.endm
-
-.macro EXCEPTION_TRAMP_RETURN label, handler
-.global \label
-\label:
-	sub lr, lr, #4
-	stmdb sp!, {r0-r12, lr}
-	mrs r1, spsr
-	mrs r2, cpsr
-	sub sp, sp, #8
-	str r1, [sp]
-	str r2, [sp, #4]
-	mov r0, sp
-	bl \handler
-	ldr r1, [sp]
-	msr spsr_cxsf, r1
-	add sp, sp, #8
-	ldmia sp!, {r0-r12, lr}
-	movs pc, lr
-.endm
+#include <kernel/scheduler.h>
 
 /* Tatsächliche Vector Table */
 _vector_table:
 	b _start                            /* Restart */
-	ldr pc, _vector_undefined_ptr       /* Undefined instruction */
-	ldr pc, _vector_svc_ptr             /* Service Call */
-	ldr pc, _vector_prefetch_abort_ptr  /* Prefetch abort */
-	ldr pc, _vector_data_abort_ptr      /* data abort */
-	ldr pc, _vector_unused_ptr          /* Not used here */
-	ldr pc, _vector_irq_ptr             /* IRQ interrupt */
-	ldr pc, _vector_unused_ptr          /* Not used here */
+	b undefined_handler                 /* Undefined instruction */
+	b svc_handler                       /* Service Call */
+	b prefetch_abort_handler            /* Prefetch abort */
+	b data_abort_handler                /* data abort */
+	nop                                 /* Not used here */
+	b irq_handler_asm                   /* IRQ interrupt */
+	nop                                 /* Not used here */
 
-_vector_unused_ptr: .word vector_unused
+irq_handler_asm:
+	sub sp, sp, #CTX_FRAME_SIZE
+    @ Now SP points to reserved space for context_frame_t
 
-_vector_undefined_ptr: .word vector_undefined
-_vector_svc_ptr: .word vector_svc
-_vector_prefetch_abort_ptr: .word vector_prefetch_abort
-_vector_data_abort_ptr: .word vector_data_abort
-_vector_irq_ptr: .word vector_irq
+    @ Store general registers
+    stmia sp, {r0-r12, lr}     @ r0 at offset 0, lr at offset 13*4
 
-EXCEPTION_TRAMP vector_undefined, undefined_handler, 4
-EXCEPTION_TRAMP vector_svc, svc_handler, 4
-EXCEPTION_TRAMP vector_prefetch_abort, prefetch_abort_handler, 4
-EXCEPTION_TRAMP vector_data_abort, data_abort_handler, 8
-EXCEPTION_TRAMP_RETURN vector_irq, irq_handler
+    @ Save CPSR of the interrupted mode
+    mrs r1, spsr
+    str r1, [sp, #(14*4)]     @ cpsr at offset 14*4
 
-vector_unused:
-2:
-	b 2b
+    @ Set up argument to C handler: r0 = sp (context_frame_t *)
+    mov r0, sp
+    bl irq_handler           @ C: context_frame_t *irq_handler_c(context_frame_t *old);
+
+    @ C returns new SP (= pointer to new context_frame_t)
+    mov sp, r0
+
+    @ Restore CPSR into SPSR
+    ldr r1, [sp, #(14*4)]
+    msr spsr_fsxc, r1
+
+    @ Restore general registers + LR
+    ldmia sp, {r0-r12, lr}
+
+    add sp, sp, #CTX_FRAME_SIZE
+
+    @ Exception return, back to user mode
+    subs pc, lr, #4

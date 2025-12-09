@@ -70,7 +70,7 @@
 BIN_LSG = 
 
 # arch/cpu
-SRC = arch/cpu/entry.S arch/cpu/stacks.S arch/cpu/vector_table.S arch/cpu/kernel.S arch/cpu/scheduler.S
+SRC = arch/cpu/entry.S arch/cpu/stacks.S arch/cpu/vector_table.S arch/cpu/kernel.S 
 
 # arch/bsp
 SRC += arch/bsp/gpio.c arch/bsp/irq.c arch/bsp/systimer.c arch/bsp/uart.c
@@ -85,7 +85,7 @@ SRC += lib/kprintf.c lib/mem.c
 SRC += 
 
 # Hier separate user source files hinzufügen
-USRC = 
+USRC = user/main.c
 
 # Hier können eigene GCC flags mit angegeben werden.
 # Die vorgegebenen Flags können weiter unten gefunden werden unter

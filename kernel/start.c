@@ -20,12 +20,11 @@ void start_kernel [[noreturn]] (void)
 	irq_enable_uart();
 	irq_enable_systimer(1);
 
-	scheduler_init_idle_thread(); // TODO implement
+	scheduler_init(); 
 
 	kprintf("=== Betriebssystem gestartet ===\n");
 	
-	scheduler_start(); // TODO implement
+	scheduler_start();
 
-	// should never get here
-    for (;;);
+	__builtin_unreachable();
 }

@@ -13,15 +13,19 @@
 
 #include <config.h>
 
-static void panic(void) __attribute__((noreturn));
+static void panic(char* msg) __attribute__((noreturn));
 
-void irq_handler(struct exception_frame *frame)
+context_frame_t *irq_handler(context_frame_t *old)
 {
+	if (g_current && g_current->state == T_RUNNING) {
+        g_current->ctx = old;
+    }
+
 	if (irq_get_systimer_pending(1)) {
 		systimer_clear_match(1);
 		systimer_increment_compare(1, TIMER_INTERVAL);
 		kprintf("!");
-		schedule(); // TODO implement
+		scheduler_pick_next();
 	}
 
 	if (irq_get_uart_pending()) {
@@ -29,54 +33,44 @@ void irq_handler(struct exception_frame *frame)
 			uart_rx_into_buffer();
 		}
 		uart_clear_interrupt();
-		char c;
-		while (uart_getc_nonblocking(&c)) { // TODO implement uart_getc_nonblocking
-			switch (c) {
-				case 'x':
-					kprintf("Do stuff in kernel"); // This is for later when the kernel should also trigger exceptions.
-					break;
-				default:
-					scheduler_create_thread(); // TODO implement, should take a function pointer and the char as argument
-					schedule(); // TODO implement
-					break;
-			}	
-		}
 	}
+
+	return g_current->ctx;
 }
 
-void undefined_handler(struct exception_frame *frame)
+void undefined_handler()
 {
-	panic();
+	panic("Undefined instruction");
 	for (;;) {
 	}
 }
 
-void svc_handler(struct exception_frame *frame)
+void svc_handler()
 {
-	panic();
+	panic("SVC");
 	for (;;) {
 	}
 }
 
-void prefetch_abort_handler(struct exception_frame *frame)
+void prefetch_abort_handler()
 {
-	panic();
+	panic("Prefetch abort");
 	for (;;) {
 	}
 }
 
-void data_abort_handler(struct exception_frame *frame)
+void data_abort_handler()
 {
-	panic();
+	panic("Data abort");
 	for (;;) {
 	}
 }
 
-static void panic(void)
+static void panic(char* msg)
 {
 	__asm__ volatile("cpsid if" : : : "memory");
 
-	kprintf("\4");
+	kprintf("PANIC: %s\n", msg);
 
 	for (;;) {
 		__asm__ volatile("wfi" ::: "memory");
