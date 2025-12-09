@@ -24,12 +24,10 @@ _bsprak:
 	ldr sp, =__stack_und_top
 	cps	#0x1f                 /* Switch to system mode */
 	ldr sp, =__stack_sys_top
-
-	cps	#0x13                 /* Run kernel in supervisor mode */
 	
 	/* Exception Vector Table adresse setzen */
 	ldr r0, =_vector_table
 	mcr p15, 0, r0, c12, c0, 0
 
-	
+	cps	#0x13        /* Run kernel in supervisor mode */
 	bl  start_kernel /* This never returns */

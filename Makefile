@@ -70,19 +70,19 @@
 BIN_LSG = 
 
 # arch/cpu
-SRC = arch/cpu/entry.S arch/cpu/stacks.S arch/cpu/vector_table.S arch/cpu/mode_regs.S 
+SRC = arch/cpu/entry.S arch/cpu/stacks.S arch/cpu/vector_table.S arch/cpu/kernel.S arch/cpu/scheduler.S
 
 # arch/bsp
 SRC += arch/bsp/gpio.c arch/bsp/irq.c arch/bsp/systimer.c arch/bsp/uart.c
 
 # kernel
-SRC += kernel/start.c kernel/handlers.c
+SRC += kernel/start.c kernel/handlers.c kernel/scheduler.c
 
 # lib
-SRC += lib/kprintf.c lib/exception_print.c lib/mem.c
+SRC += lib/kprintf.c lib/mem.c
 
 # tests
-SRC += tests/regcheck.c tests/regcheck_asm.S
+SRC += 
 
 # Hier separate user source files hinzufügen
 USRC = 

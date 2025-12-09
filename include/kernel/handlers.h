@@ -17,6 +17,4 @@ void prefetch_abort_handler [[noreturn]] (struct exception_frame *frame);
 void data_abort_handler [[noreturn]] (struct exception_frame *frame);
 void irq_handler(struct exception_frame *frame);
 
-extern bool irq_debug;
-
 #endif
