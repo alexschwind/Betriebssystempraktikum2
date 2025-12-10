@@ -42,20 +42,20 @@ context_frame_t *irq_handler(context_frame_t *old)
 	if (g_current && g_current->state == T_RUNNING) {
 	    g_current->ctx = old;
 	}
-
 	if (irq_get_uart_pending()) {
 		if (uart_get_rx_interrupt_status()) {
 			uart_rx_into_buffer();
 		}
 		uart_clear_interrupt();
+		bool new_thread_created = false;
 		char c;
 		while (uart_getc_nonblocking(&c)) {
-			if (scheduler_thread_create(main, &c, sizeof(c)) == 0) {
-				kprintf("\n[irq] created thread for char '%c'\n", c);
-				scheduler_pick_next();
-			} else {
-				kprintf("\n[irq] failed to create thread for char '%c'\n", c);
-			}
+			if (scheduler_thread_create(main, &c, sizeof(c))) {
+				new_thread_created = true;
+			} 
+		}
+		if (new_thread_created) {
+			scheduler_pick_next();
 		}
 	}
 

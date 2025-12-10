@@ -98,7 +98,7 @@ void scheduler_pick_next(void)
 }
 
 // Called from kernel (SVC mode)
-int scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size)
+bool scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size)
 {
     tcb_t *t = NULL;
     unsigned int temp_rr_cursor = g_rr_cursor;
@@ -117,8 +117,8 @@ int scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int
         }
     }
     if (!t) {
-        kprintf("[thread] create failed: no free TCBs\n");
-        return -1; // No free slots
+        kprintf("Could not create thread.");
+        return false; // No free slots
     }
 
     memset(t->stack_top, 0, STACK_SIZE);
@@ -150,7 +150,7 @@ int scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int
     t->ctx   = frame;
     t->state = T_RUNNING;
 
-    return 0;
+    return true;
 }
 
 __attribute__((noreturn)) void scheduler_start(void) 

@@ -6,7 +6,7 @@ In dieser Aufgabe soll unser Betriebssystem um die Fähigkeit des präemptiven M
 2. einen Kontextwechsel ermöglichen. Dafür ist es u.a. notwendig, nach Eintritt in eine Ausnahme
     1. die Register auf dem Stack zu sichern,
     2. die Register eines Threads in dessen TCB zu sichern,
-    3. den nächsten Thread zu ermitteln und dessen Werte auzutauschen,
+    3. den nächsten Thread zu ermitteln und dessen Werte auszutauschen,
     4. die Register wiederherzustellen und
     5. aus der Ausnahme zurückzuspringen.
 3. einen Scheduler zu implementieren, der regelmäßig einen Kontextwechsel anstößt. Es soll kein Thread verhungern und die verfügbare CPU-Zeit gleichmäßig zwischen den Threads aufgeteilt werden (z.B. eine Round-
@@ -20,7 +20,7 @@ Robin-Scheduler).
 
 - Threads können über void scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size), erstellt werden, wobei func die Einstiegs-Funktion des neuen Threads ist, arg ein Pointer auf die Argumente der Länge arg_size, ist, die auf den Stack des neuen Threads zu kopieren sind
 
-- Wenn kein Thread erstellt werden konnte, weil bereits alle Threads verwendet sind, wird „Could not create thread.” ausgegeben und kein Aktion getätigt
+- Wenn kein Thread erstellt werden konnte, weil bereits alle Threads verwendet sind, wird „Could not create thread.” ausgegeben und keine Aktion getätigt
 
 - Die Einstiegs-Funktion des Threads kriegt beim Start einen Pointer auf das auf den Stack kopierte Argument übergeben
 
@@ -45,9 +45,9 @@ Robin-Scheduler).
 - Zur Demonstration der Funktionalität müssen außerdem die folgenden Anforderungen erfüllt werden
     - Bei jedem Kontextwechsel wird ein Zeilenumbruch ausgegeben.
     - Bei jedem Timer-Interrupt wird ein Ausrufezeichen ausgegeben.
-    - Innerhalb der Interrupt Behandlung wird nach dem Empfangen des Zeichens: S ein Supervisor Call ausgelöst, P ein Prefetch Abort erzeugt, A ein Data Abort erzeugt, U eine Undefined Instruction ausgeführt, bei allen anderen Zeichen ein neuer Thread erstellt, welcher die main Funktion aus user/main.c mit dem empfangenen Zeichen als Argument ausführt (Das erstellen von Threads in der Interrupt Behandlung ist i.d.R. nicht zu empfehlen. Der Bequemlichkeit halber erlauben wir dies hier trotzdem.)
+    - Innerhalb der Interrupt Behandlung wird nach dem Empfangen des Zeichens: S ein Supervisor Call ausgelöst, P ein Prefetch Abort erzeugt, A ein Data Abort erzeugt, U eine Undefined Instruction ausgeführt, bei allen anderen Zeichen ein neuer Thread erstellt, welcher die main Funktion aus Anhang A mit dem empfangenen Zeichen als Argument ausführt (Das erstellen von Threads in der Interrupt Behandlung ist i.d.R. nicht zu empfehlen. Der Bequemlichkeit halber erlauben wir dies hier trotzdem.)
 
-- Die in dem Beispiel aus user/main.c verwendeten Funktionen do_xyz() lösen jeweils die ihrem Namen entsprechende Ausnahme aus
+- Die in dem Beispiel aus Anhang A verwendeten Funktionen do_xyz() lösen jeweils die ihrem Namen entsprechende Ausnahme aus
 - Nach der Initialisierung eures Betriebssystems muss der String === Betriebssystem gestartet === aus-
 geben werden.
 - Nach dieser Ausgabe ruft das Betriebssystem test_kernel() auf, welche in config.h deklariert ist
@@ -58,3 +58,38 @@ geben werden.
 - Der Register Checker wird eine Warnung ausgeben, dass nicht alle Tests möglich sind aufgrund des User Modus. Dies ist in Ordnung.
 - In include/lib/list.h ist eine doppelt-verkettete Liste implementiert. Diese kann auch als Warteschlange verwendet werden.
 - Damit sich der Kernel in jeder Situation den Anforderungen entsprechend verhält, ist es sinnvoll, sicherzustellen, dass sich die Ausführung verschiedener Kernelfunktionen gegenseitig ausschließt. Da wir nur einen aktiven Kern haben, kann dies realisiert werden, in dem Interrupts im Kernel maskiert werden.
+
+# Anhang A
+
+```c
+#include <user/main.h>
+#include <tests/regcheck.h>
+#include <config.h>
+
+void main(void * args) {
+	test_user(args);
+	char c = *((char *) args);
+	switch (c) {
+		case 'a':
+			do_data_abort();
+			return;
+		case 'p':
+			do_prefetch_abort();
+			return;
+		case 'u':
+			do_undef();
+			return;
+		case 's':
+			do_svc();
+			return;
+		case 'c':
+			register_checker();
+			return;
+	}
+	
+	for(unsigned int n = 0; n < PRINT_COUNT; n++){
+		for(volatile unsigned int i = 0; i < BUSY_WAIT_COUNTER; i++){}
+		uart_putc(c);
+	}
+}
+```

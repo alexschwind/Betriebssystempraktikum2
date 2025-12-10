@@ -51,7 +51,7 @@ extern tcb_t *g_current;
 extern void scheduler_first_context_restore(context_frame_t *ctx);
 
 void scheduler_pick_next(void);
-int scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size);
+bool scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size);
 void scheduler_init(void);
 __attribute__((noreturn)) void scheduler_start(void);
 
