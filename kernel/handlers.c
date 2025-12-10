@@ -22,11 +22,38 @@ static uint32_t read_dfsr(void);
 static uint32_t read_dfar(void);
 static uint32_t read_ifsr(void);
 static uint32_t read_ifar(void);
-static bool is_user_thread(void);
+static bool is_user_thread(const context_frame_t *ctx);
 static void trigger_kernel_data_abort(void) __attribute__((noreturn));
 static void trigger_kernel_prefetch_abort(void) __attribute__((noreturn));
 static void trigger_kernel_svc(void) __attribute__((noreturn));
 static void trigger_kernel_undef(void) __attribute__((noreturn));
+
+static inline context_frame_t *current_ctx_storage(void)
+{
+	return g_current ? &g_current->ctx_storage : NULL;
+}
+
+static inline void save_current_context(context_frame_t *ctx)
+{
+	context_frame_t *dst = current_ctx_storage();
+	if (dst && ctx) {
+		memcpy(dst, ctx, sizeof(context_frame_t));
+	}
+}
+
+static inline void restore_current_context(context_frame_t *ctx)
+{
+	context_frame_t *src = current_ctx_storage();
+	if (src && ctx) {
+		memcpy(ctx, src, sizeof(context_frame_t));
+	}
+}
+
+static inline context_frame_t *report_context(context_frame_t *fallback)
+{
+	context_frame_t *ctx = current_ctx_storage();
+	return ctx ? ctx : fallback;
+}
 
 static inline uint32_t decode_svc_number(context_frame_t *ctx)
 {
@@ -36,8 +63,8 @@ static inline uint32_t decode_svc_number(context_frame_t *ctx)
 
 void irq_handler(context_frame_t *ctx)
 {
-	// Save old context into tcb
-	memcpy(&g_current->ctx_storage, ctx, sizeof(context_frame_t));
+	// Save old context into tcb if available
+	save_current_context(ctx);
 	
 	bool should_do_context_switch = false;
 
@@ -82,7 +109,7 @@ void irq_handler(context_frame_t *ctx)
 	}
 
 	// Restore new context from tcb
-	memcpy(ctx, &g_current->ctx_storage, sizeof(context_frame_t));
+	restore_current_context(ctx);
 }
 
 void svc_handler(context_frame_t *ctx)
@@ -90,15 +117,16 @@ void svc_handler(context_frame_t *ctx)
 	__asm__ volatile("cpsid i" ::: "memory");
 
 	// Save old context into tcb
-	memcpy(&g_current->ctx_storage, ctx, sizeof(context_frame_t));
+	save_current_context(ctx);
 
-	if (!is_user_thread()) {
+	context_frame_t *fault_ctx = report_context(ctx);
+	if (!is_user_thread(fault_ctx)) {
 		struct exception_info info = {
 			.exception_name		 = "Kernel Supervisor Call",
-			.exception_source_addr = g_current ? g_current->ctx_storage.lr_exc : 0U,
+			.exception_source_addr = fault_ctx ? fault_ctx->lr_exc : 0U,
 		};
 
-		print_exception_infos(&g_current->ctx_storage, &info);
+		print_exception_infos(fault_ctx, &info);
 		panic("Kernel attempted SVC");
 	}
 
@@ -117,7 +145,7 @@ void svc_handler(context_frame_t *ctx)
 	scheduler_pick_next();
 
 	// Restore new context from tcb
-	memcpy(ctx, &g_current->ctx_storage, sizeof(context_frame_t));
+	restore_current_context(ctx);
 	__asm__ volatile("cpsie i" ::: "memory");
 }
 
@@ -125,16 +153,17 @@ void undefined_handler(context_frame_t *ctx)
 {
 	__asm__ volatile("cpsid i" ::: "memory");
 	// Save old context into tcb
-	memcpy(&g_current->ctx_storage, ctx, sizeof(context_frame_t));
+	save_current_context(ctx);
 
+	context_frame_t *fault_ctx = report_context(ctx);
 	struct exception_info info = {
 		.exception_name		 = "Undefined Instruction",
-		.exception_source_addr = g_current ? g_current->ctx_storage.lr_exc : 0U,
+		.exception_source_addr = fault_ctx ? fault_ctx->lr_exc : 0U,
 	};
 
-	print_exception_infos(&g_current->ctx_storage, &info);
+	print_exception_infos(fault_ctx, &info);
 
-	if (!is_user_thread()) {
+	if (!is_user_thread(fault_ctx)) {
 		panic("Kernel undefined instruction");
 	}
 
@@ -146,7 +175,7 @@ void undefined_handler(context_frame_t *ctx)
 	scheduler_pick_next();
 
 	// Restore new context from tcb
-	memcpy(ctx, &g_current->ctx_storage, sizeof(context_frame_t));
+	restore_current_context(ctx);
 	__asm__ volatile("cpsie i" ::: "memory");
 }
 
@@ -154,19 +183,20 @@ void prefetch_abort_handler(context_frame_t *ctx)
 {
 	__asm__ volatile("cpsid i" ::: "memory");
 	// Save old context into tcb
-	memcpy(&g_current->ctx_storage, ctx, sizeof(context_frame_t));
+	save_current_context(ctx);
 
+	context_frame_t *fault_ctx = report_context(ctx);
 	struct exception_info info = {
 		.exception_name		 = "Prefetch Abort",
-		.exception_source_addr = g_current ? g_current->ctx_storage.lr_exc : 0U,
+		.exception_source_addr = fault_ctx ? fault_ctx->lr_exc : 0U,
 		.is_prefetch_abort			= true,
 		.instruction_fault_status_register	= read_ifsr(),
 		.instruction_fault_address_register = read_ifar(),
 	};
 
-	print_exception_infos(&g_current->ctx_storage, &info);
+	print_exception_infos(fault_ctx, &info);
 
-	if (!is_user_thread()) {
+	if (!is_user_thread(fault_ctx)) {
 		panic("Kernel prefetch abort");
 	}
 
@@ -178,7 +208,7 @@ void prefetch_abort_handler(context_frame_t *ctx)
 	scheduler_pick_next();
 
 	// Restore new context from tcb
-	memcpy(ctx, &g_current->ctx_storage, sizeof(context_frame_t));
+	restore_current_context(ctx);
 	__asm__ volatile("cpsie i" ::: "memory");
 }
 
@@ -186,19 +216,20 @@ void data_abort_handler(context_frame_t *ctx)
 {
 	__asm__ volatile("cpsid i" ::: "memory");
 	// Save old context into tcb
-	memcpy(&g_current->ctx_storage, ctx, sizeof(context_frame_t));
+	save_current_context(ctx);
 
+	context_frame_t *fault_ctx = report_context(ctx);
 	struct exception_info info = {
 		.exception_name		 = "Data Abort",
-		.exception_source_addr = g_current ? g_current->ctx_storage.lr_exc : 0U,
+		.exception_source_addr = fault_ctx ? fault_ctx->lr_exc : 0U,
 		.is_data_abort		 = true,
 		.data_fault_status_register = read_dfsr(),
 		.data_fault_address_register = read_dfar(),
 	};
 
-	print_exception_infos(&g_current->ctx_storage, &info);
+	print_exception_infos(fault_ctx, &info);
 
-	if (!is_user_thread()) {
+	if (!is_user_thread(fault_ctx)) {
 		panic("Kernel data abort");
 	}
 
@@ -210,7 +241,7 @@ void data_abort_handler(context_frame_t *ctx)
 	scheduler_pick_next();
 
 	// Restore new context from tcb
-	memcpy(ctx, &g_current->ctx_storage, sizeof(context_frame_t));
+	restore_current_context(ctx);
 	__asm__ volatile("cpsie i" ::: "memory");
 }
 
@@ -253,9 +284,8 @@ static uint32_t read_ifar(void)
 	return value;
 }
 
-static bool is_user_thread(void)
+static bool is_user_thread(const context_frame_t *ctx)
 {
-	context_frame_t *ctx = &g_current->ctx_storage;
 	if (!ctx) {
 		return false;
 	}

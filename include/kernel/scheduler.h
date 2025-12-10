@@ -3,7 +3,7 @@
 
 #define MAX_THREADS 32
 #define STACK_SIZE  1024
-#define CTX_FRAME_SIZE  (16 * 4)
+#define CTX_FRAME_SIZE  (17 * 4)
 
 #ifndef __ASSEMBLER__
 
@@ -30,7 +30,8 @@ typedef struct context_frame {
     uint32_t r10;
     uint32_t r11;
     uint32_t r12;
-    uint32_t sp_usr;    // user-mode SP
+    uint32_t lr_usr;    // user-mode LR (r14)
+    uint32_t sp_usr;    // user-mode SP (r13)
     uint32_t lr_exc;    // exception LR = user PC + 4
     uint32_t cpsr_usr;  // user-mode CPSR
 } context_frame_t;

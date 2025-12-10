@@ -44,19 +44,21 @@ scheduler_first_context_restore:
     mov     r2, #CTX_FRAME_SIZE
     bl      memcpy
 
-	@ Load CPSR for new thread (saved in slot 15) into SPSR_irq
-    ldr   r1, [sp, #(15*4)]
+	@ Load CPSR for new thread (saved in slot 16) into SPSR_irq
+	ldr   r1, [sp, #(16*4)]
     msr   spsr_fsxc, r1
 
-    @ Load exception LR (slot 14) into lr
-    ldr   r1, [sp, #(14*4)]
+	@ Load exception LR (slot 15) into lr
+	ldr   r1, [sp, #(15*4)]
     mov   lr, r1
 
-    @ Restore user/system SP (slot 13)
-    ldr   r1, [sp, #(13*4)]
-    cps   #0x1f
-    mov   sp, r1                    @ new thread's user/system SP
-    cps   #0x13                     @ back to SVC mode
+	@ Restore user/system LR+SP
+	ldr   r1, [sp, #(14*4)]         @ user SP
+	ldr   r2, [sp, #(13*4)]         @ user LR
+	cps   #0x1f
+	mov   sp, r1                    @ new thread's user/system SP
+	mov   lr, r2                    @ new thread's user/system LR
+	cps   #0x13                     @ back to SVC mode
 
     @ Now restore r0-r12 from slots 0..12
     ldmia sp, {r0-r12}

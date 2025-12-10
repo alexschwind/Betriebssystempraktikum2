@@ -19,16 +19,18 @@
     sub  sp, sp, #CTX_FRAME_SIZE
     stmia sp, {r0-r12}              @ save r0-r12 onto exception stack
 
-    @ Save user/system SP into slot 13
-    cps   #0x1f                     @ System mode (shares SP with User)
+    @ Save user/system SP and LR into frame
+    cps   #0x1f                     @ System mode (shares SP/LR with User)
     mov   r3, sp                    @ r3 = user/system SP
+    mov   r4, lr                    @ r4 = user/system LR
     cps   #\mode                    @ back to exception mode
     cpsid if                        @ Disable IRQ and FIQ in this mode
 
-    str   r3, [sp, #(13*4)]         @ [sp + 52] = user SP
-    str   lr, [sp, #(14*4)]         @ [sp + 56] = exception LR (lr_irq)
+    str   r4, [sp, #(13*4)]         @ user LR
+    str   r3, [sp, #(14*4)]         @ user SP
+    str   lr, [sp, #(15*4)]         @ exception LR (lr_irq)
     mrs   r3, spsr                  @ SPSR_irq = user CPSR
-    str   r3, [sp, #(15*4)]         @ [sp + 60] = CPSR of user/system
+    str   r3, [sp, #(16*4)]         @ CPSR of user/system
 
     @ sp points to full context frame of OLD thread
     mov   r0, sp                    @ r0 = pointer to context frame on IRQ stack
@@ -38,18 +40,20 @@
 
     @ irq_sp now points to saved context frame of NEW thread 
 
-    @ Load CPSR for new thread (saved in slot 15) into SPSR_irq
-    ldr   r1, [sp, #(15*4)]
+    @ Load CPSR for new thread (saved in slot 16) into SPSR_irq
+    ldr   r1, [sp, #(16*4)]
     msr   spsr_fsxc, r1
 
-    @ Load exception LR (slot 14) into lr
-    ldr   r1, [sp, #(14*4)]
+    @ Load exception LR (slot 15) into lr
+    ldr   r1, [sp, #(15*4)]
     mov   lr, r1
 
-    @ Restore user/system SP (slot 13)
-    ldr   r1, [sp, #(13*4)]
+    @ Restore user/system LR+SP
+    ldr   r1, [sp, #(14*4)]         @ user SP
+    ldr   r2, [sp, #(13*4)]         @ user LR
     cps   #0x1f
     mov   sp, r1                    @ new thread's user/system SP
+    mov   lr, r2                    @ new thread's user/system LR
     cps   #\mode                    @ back to IRQ mode, SP = SP_irq again
     cpsid if                        @ Disable IRQ and FIQ in this mode
 
