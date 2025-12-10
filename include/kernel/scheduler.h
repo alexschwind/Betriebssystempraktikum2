@@ -2,7 +2,7 @@
 #define SCHEDULER_H_
 
 #define MAX_THREADS 32
-#define STACK_SIZE  1024
+#define STACK_SIZE  2048
 #define CTX_FRAME_SIZE  (17 * 4)
 
 #ifndef __ASSEMBLER__
