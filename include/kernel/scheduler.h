@@ -11,8 +11,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include <lib/list.h>
-
 typedef enum {
     T_UNUSED = 0,
     T_RUNNING,
@@ -46,7 +44,6 @@ typedef struct tcb {
     uint8_t           *stack_base;
     uint8_t           *stack_top;
 
-    list_node          ready_node;
 } tcb_t;
 
 extern tcb_t *g_current;

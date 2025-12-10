@@ -12,10 +12,17 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
-
 #include <config.h>
 
+#include <lib/exception_print.h>
+
+//#define DEBUG
+
 static void panic(char* msg) __attribute__((noreturn));
+static uint32_t read_dfsr(void);
+static uint32_t read_dfar(void);
+static uint32_t read_ifsr(void);
+static uint32_t read_ifar(void);
 
 static inline uint32_t decode_svc_number(context_frame_t *ctx)
 {
@@ -25,9 +32,16 @@ static inline uint32_t decode_svc_number(context_frame_t *ctx)
 
 context_frame_t *irq_handler(context_frame_t *old)
 {
+#ifdef DEBUG
+	struct exception_info info = {
+		.exception_name	       = "IRQ",
+	};
+	print_exception_infos(old, &info);
+#endif
+	
 	if (g_current && g_current->state == T_RUNNING) {
-        g_current->ctx = old;
-    }
+	    g_current->ctx = old;
+	}
 
 	if (irq_get_uart_pending()) {
 		if (uart_get_rx_interrupt_status()) {
@@ -56,11 +70,19 @@ context_frame_t *irq_handler(context_frame_t *old)
 
 context_frame_t *svc_handler(context_frame_t *ctx)
 {
+#ifdef DEBUG
+	struct exception_info info = {
+		.exception_name	       = "Supervisor Call"
+	};
+
+	print_exception_infos(ctx, &info);
+#endif
+
+	__asm__ volatile("cpsid i" ::: "memory");
+
 	if (g_current) {
 		g_current->ctx = ctx;
 	}
-
-	__asm__ volatile("cpsid i" ::: "memory");
 	context_frame_t *next_ctx = ctx;
 
 	uint32_t svc_no = decode_svc_number(ctx);
@@ -84,6 +106,12 @@ context_frame_t *svc_handler(context_frame_t *ctx)
 
 void undefined_handler()
 {
+	// struct exception_info info = {
+	// 	.exception_name	       = "Undefined Instruction",
+	// 	.exception_source_addr = frame ? frame->lr : 0U,
+	// };
+
+	// print_exception_infos(frame, &info);
 	panic("Undefined instruction");
 	for (;;) {
 	}
@@ -91,6 +119,16 @@ void undefined_handler()
 
 void prefetch_abort_handler()
 {
+	// struct exception_info info = {
+	// 	.exception_name	       = "Prefetch Abort",
+	// 	.exception_source_addr = frame ? frame->lr : 0U,
+	// };
+	// info.is_prefetch_abort			= true;
+	// info.instruction_fault_status_register	= read_ifsr();
+	// info.instruction_fault_address_register = read_ifar();
+
+	// print_exception_infos(frame, &info);
+	
 	panic("Prefetch abort");
 	for (;;) {
 	}
@@ -98,6 +136,16 @@ void prefetch_abort_handler()
 
 void data_abort_handler()
 {
+	// struct exception_info info = {
+	// 	.exception_name	       = "Data Abort",
+	// 	.exception_source_addr = frame ? frame->lr : 0U,
+	// };
+	// info.is_data_abort		 = true;
+	// info.data_fault_status_register	 = read_dfsr();
+	// info.data_fault_address_register = read_dfar();
+
+	// print_exception_infos(frame, &info);
+	
 	panic("Data abort");
 	for (;;) {
 	}
@@ -112,4 +160,32 @@ static void panic(char* msg)
 	for (;;) {
 		__asm__ volatile("wfi" ::: "memory");
 	}
+}
+
+static uint32_t read_dfsr(void)
+{
+	uint32_t value;
+	__asm__ volatile("mrc p15, 0, %0, c5, c0, 0" : "=r"(value));
+	return value;
+}
+
+static uint32_t read_dfar(void)
+{
+	uint32_t value;
+	__asm__ volatile("mrc p15, 0, %0, c6, c0, 0" : "=r"(value));
+	return value;
+}
+
+static uint32_t read_ifsr(void)
+{
+	uint32_t value;
+	__asm__ volatile("mrc p15, 0, %0, c5, c0, 1" : "=r"(value));
+	return value;
+}
+
+static uint32_t read_ifar(void)
+{
+	uint32_t value;
+	__asm__ volatile("mrc p15, 0, %0, c6, c0, 2" : "=r"(value));
+	return value;
 }
