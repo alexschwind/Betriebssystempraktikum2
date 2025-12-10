@@ -21,53 +21,63 @@ _vector_table:
 	nop                                 /* Not used here */
 
 irq_handler_asm:
-	sub sp, sp, #CTX_FRAME_SIZE
-    @ Now SP points to reserved space for context_frame_t
+    cps #0x1f                  @ switch to system mode (user stack)
+    sub sp, sp, #CTX_FRAME_SIZE @ make space for context frame
+    stmia sp, {r0-r12}         @ save general registers
+    mov r2, sp                 @ r2 points to the context frame on user stack
+    cps #0x12                  @ back to IRQ mode
+    str lr, [r2, #(13*4)]      @ save exception LR (PC + 4)
+    mrs r3, spsr
+    str r3, [r2, #(14*4)]      @ save user CPSR
 
-    @ Store general registers
-    stmia sp, {r0-r12, lr}     @ r0 at offset 0, lr at offset 13*4
+    mov r0, r2                 @ pass frame pointer to C handler
+    bl irq_handler
 
-    @ Save CPSR of the interrupted mode
-    mrs r1, spsr
-    str r1, [sp, #(14*4)]     @ cpsr at offset 14*4
+    mov r2, r0                 @ r2 = next context frame pointer
 
-    @ Set up argument to C handler: r0 = sp (context_frame_t *)
-    mov r0, sp
-    bl irq_handler           @ C: context_frame_t *irq_handler_c(context_frame_t *old);
+    cps #0x1f
+    mov sp, r2                 @ load user stack pointer for next thread
+    cps #0x12
 
-    @ C returns new SP (= pointer to new context_frame_t)
-    mov sp, r0
+    ldr r1, [r2, #(13*4)]      @ load saved exception LR
+    ldr r0, [r2, #(14*4)]      @ load saved CPSR
+    msr spsr_fsxc, r0
+    mov lr, r1
 
-    @ Restore CPSR into SPSR
-    ldr r1, [sp, #(14*4)]
-    msr spsr_fsxc, r1
+    cps #0x1f
+    ldmia sp!, {r0-r12}        @ restore general registers
+    add sp, sp, #8             @ drop saved LR/CPSR, pop frame
+    cps #0x12
 
-    @ Restore general registers + LR
-    ldmia sp, {r0-r12, lr}
-
-    add sp, sp, #CTX_FRAME_SIZE
-
-    @ Exception return, back to user mode
     subs pc, lr, #4
 
 svc_handler_asm:
+    cps #0x1f
     sub sp, sp, #CTX_FRAME_SIZE
+    stmia sp, {r0-r12}         @ save general registers
+    mov r2, sp                 @ r2 points to the context frame on user stack
+    cps #0x13
+    str lr, [r2, #(13*4)]
+    mrs r3, spsr
+    str r3, [r2, #(14*4)]
 
-    stmia sp, {r0-r12, lr}
-
-    mrs r1, spsr
-    str r1, [sp, #(14*4)]
-
-    mov r0, sp
+    mov r0, r2
     bl svc_handler
 
-    mov sp, r0
+    mov r2, r0
 
-    ldr r1, [sp, #(14*4)]
-    msr spsr_fsxc, r1
+    cps #0x1f
+    mov sp, r2
+    cps #0x13
 
-    ldmia sp, {r0-r12, lr}
+    ldr r1, [r2, #(13*4)]
+    ldr r0, [r2, #(14*4)]
+    msr spsr_fsxc, r0
+    mov lr, r1
 
-    add sp, sp, #CTX_FRAME_SIZE
+    cps #0x1f
+    ldmia sp!, {r0-r12}
+    add sp, sp, #8
+    cps #0x13
 
     subs pc, lr, #4
