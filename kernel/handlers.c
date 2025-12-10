@@ -17,7 +17,7 @@
 
 #include <lib/exception_print.h>
 
-static void panic(char* msg) __attribute__((noreturn));
+static void panic(void) __attribute__((noreturn));
 static uint32_t read_dfsr(void);
 static uint32_t read_dfar(void);
 static uint32_t read_ifsr(void);
@@ -127,7 +127,7 @@ void svc_handler(context_frame_t *ctx)
 		};
 
 		print_exception_infos(fault_ctx, &info);
-		panic("Kernel attempted SVC");
+		panic();
 	}
 
 	if (g_current) {
@@ -164,7 +164,7 @@ void undefined_handler(context_frame_t *ctx)
 	print_exception_infos(fault_ctx, &info);
 
 	if (!is_user_thread(fault_ctx)) {
-		panic("Kernel undefined instruction");
+		panic();
 	}
 
 	if (g_current) {
@@ -197,7 +197,7 @@ void prefetch_abort_handler(context_frame_t *ctx)
 	print_exception_infos(fault_ctx, &info);
 
 	if (!is_user_thread(fault_ctx)) {
-		panic("Kernel prefetch abort");
+		panic();
 	}
 
 	if (g_current) {
@@ -230,7 +230,7 @@ void data_abort_handler(context_frame_t *ctx)
 	print_exception_infos(fault_ctx, &info);
 
 	if (!is_user_thread(fault_ctx)) {
-		panic("Kernel data abort");
+		panic();
 	}
 
 	if (g_current) {
@@ -245,11 +245,9 @@ void data_abort_handler(context_frame_t *ctx)
 	__asm__ volatile("cpsie i" ::: "memory");
 }
 
-static void panic(char* msg)
+static void panic(void)	
 {
 	__asm__ volatile("cpsid if" : : : "memory");
-
-	kprintf("PANIC: %s\n", msg);
 
 	for (;;) {
 		__asm__ volatile("wfi" ::: "memory");

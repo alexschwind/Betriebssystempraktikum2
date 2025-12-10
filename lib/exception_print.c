@@ -24,7 +24,7 @@ static const char *get_fsr_description(unsigned int fsr);
 
 void print_exception_infos(context_frame_t *frame, const struct exception_info *info)
 {
-	kprintf("############ %s at 0x%08x ############\n", info->exception_name, (unsigned int)info->exception_source_addr);
+	kprintf("\n############ %s at 0x%08x ############\n", info->exception_name, (unsigned int)info->exception_source_addr);
 	if (info->is_data_abort) {
 		const char *dfsr_description = get_fsr_description(info->data_fault_status_register);
 		kprintf("Data Fault Status Register: 0x%08x -> %s\n",

@@ -36,7 +36,6 @@ static inline uint8_t *thread_stack_top(unsigned int idx)
 static void idle_thread_fn(void)
 {
     for (;;) {
-        kprintf(".");
         asm volatile ("wfi");
     }
     __builtin_unreachable();
@@ -75,6 +74,7 @@ void scheduler_init(void)
 
 void scheduler_pick_next(void)
 {
+    tcb_t* prev = g_current;
     for (unsigned int scanned = 0; scanned < MAX_THREADS; ++scanned) {
         unsigned int idx = g_rr_cursor;
         g_rr_cursor = (g_rr_cursor + 1u) % MAX_THREADS;
@@ -91,7 +91,9 @@ void scheduler_pick_next(void)
     }
 
     g_current = g_idle_tcb;
-    uart_putc('\n');
+    if (prev != NULL && prev != g_current && g_current != g_idle_tcb) {
+        uart_putc('\n');
+    }
 }
 
 // Called from kernel (SVC mode)
