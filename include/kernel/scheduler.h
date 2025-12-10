@@ -3,7 +3,7 @@
 
 #define MAX_THREADS 32
 #define STACK_SIZE  1024
-#define CTX_FRAME_SIZE (15 * 4) 
+#define CTX_FRAME_SIZE  (16 * 4)
 
 #ifndef __ASSEMBLER__
 
@@ -30,23 +30,19 @@ typedef struct context_frame {
     uint32_t r10;
     uint32_t r11;
     uint32_t r12;
-    uint32_t lr;    // user-mode LR
-    uint32_t cpsr;  // user-mode CPSR
+    uint32_t sp_usr;    // user-mode SP
+    uint32_t lr_exc;    // exception LR = user PC + 4
+    uint32_t cpsr_usr;  // user-mode CPSR
 } context_frame_t;
 
 typedef struct tcb {
+    context_frame_t    ctx_storage;
     thread_state_t     state;
-
-    // Saved context: pointer to a context_frame_t on this thread's stack
-    context_frame_t   *ctx;
-
-    // Stack memory (statically allocated)
-    uint8_t           *stack_base;
-    uint8_t           *stack_top;
-
+    uint8_t*           stack_base;
+    uint8_t*           stack_top;
 } tcb_t;
 
-extern tcb_t *g_current;
+extern tcb_t* g_current;
 
 extern void scheduler_first_context_restore(context_frame_t *ctx);
 

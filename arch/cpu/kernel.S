@@ -36,24 +36,33 @@ _bsprak:
 @ r0 = ctx (pointer to context_frame_t)
 @ must be called from SVC mode
 scheduler_first_context_restore:
-	mov     r2, r0
+	cpsid if
 
-	@ Point system-mode SP to the saved user context frame
-	cps     #0x1f
-	mov     sp, r2
-	cps     #0x13
+	sub     sp, sp, #CTX_FRAME_SIZE
+	mov     r1, r0              @ r1 = &first_tcb->ctx (src)
+    mov     r0, sp              @ r0 = frame_on_stack (dst)
+    mov     r2, #CTX_FRAME_SIZE
+    bl      memcpy
 
-	@ Load return LR and CPSR for the target thread
-	ldr     r1, [r2, #(13*4)]
-	ldr     r0, [r2, #(14*4)]
-	msr     spsr_fsxc, r0
-	mov     lr, r1
+	@ Load CPSR for new thread (saved in slot 15) into SPSR_irq
+    ldr   r1, [sp, #(15*4)]
+    msr   spsr_fsxc, r1
 
-	@ Restore general-purpose registers from the user stack
-	cps     #0x1f
-	ldmia   sp!, {r0-r12}
-	add     sp, sp, #8 @ drop saved LR/CPSR, pop frame
-	cps     #0x13
+    @ Load exception LR (slot 14) into lr
+    ldr   r1, [sp, #(14*4)]
+    mov   lr, r1
 
-	@ Return to user mode as if from exception
-	subs    pc, lr, #4 
+    @ Restore user/system SP (slot 13)
+    ldr   r1, [sp, #(13*4)]
+    cps   #0x1f
+    mov   sp, r1                    @ new thread's user/system SP
+    cps   #0x13                     @ back to SVC mode
+
+    @ Now restore r0-r12 from slots 0..12
+    ldmia sp, {r0-r12}
+
+    @ Free the frame from IRQ stack
+    add   sp, sp, #CTX_FRAME_SIZE 
+
+    @ Return from IRQ into new thread context
+    subs  pc, lr, #4

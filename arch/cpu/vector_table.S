@@ -11,35 +11,56 @@
 
 .macro DEFINE_CONTEXT_HANDLER name, mode, handler, ret_adj
 \name:
-    cps #0x1f                     @ switch to system mode (user stack)
-    sub sp, sp, #CTX_FRAME_SIZE   @ make space for context frame
-    stmia sp, {r0-r12}            @ save r0-r12 on user stack
-    mov r2, sp                    @ r2 points to the context frame on user stack
-    cps #\mode                    @ switch to target mode
-    str lr, [r2, #(13*4)]         @ save lr on context frame
-    mrs r3, spsr
-    str r3, [r2, #(14*4)]         @ save spsr on context frame
+    @ In exception mode here
+    cpsid if                        @ Disable IRQ and FIQ in this mode
 
-    mov r0, r2
-    bl \handler
+    @ ------ IRQ entry: save context of current thread ------
 
-    mov r2, r0
+    sub  sp, sp, #CTX_FRAME_SIZE
+    stmia sp, {r0-r12}              @ save r0-r12 onto exception stack
 
-    cps #0x1f
-    mov sp, r2                    @ restore user stack pointer
-    cps #\mode
+    @ Save user/system SP into slot 13
+    cps   #0x1f                     @ System mode (shares SP with User)
+    mov   r3, sp                    @ r3 = user/system SP
+    cps   #\mode                    @ back to exception mode
+    cpsid if                        @ Disable IRQ and FIQ in this mode
 
-    ldr r1, [r2, #(13*4)]         @ load lr from context frame
-    ldr r0, [r2, #(14*4)]         @ load spsr from context frame
-    msr spsr_fsxc, r0
-    mov lr, r1
+    str   r3, [sp, #(13*4)]         @ [sp + 52] = user SP
+    str   lr, [sp, #(14*4)]         @ [sp + 56] = exception LR (lr_irq)
+    mrs   r3, spsr                  @ SPSR_irq = user CPSR
+    str   r3, [sp, #(15*4)]         @ [sp + 60] = CPSR of user/system
 
-    cps #0x1f
-    ldmia sp!, {r0-r12}
-    add sp, sp, #8
-    cps #\mode
+    @ sp points to full context frame of OLD thread
+    mov   r0, sp                    @ r0 = pointer to context frame on IRQ stack
+    bl    \handler                  @ C helper: sees context_t *ctx = (context_t *)r0
 
-    subs pc, lr, #\ret_adj
+    @ ------ IRQ exit: restore context of NEW thread ------
+
+    @ irq_sp now points to saved context frame of NEW thread 
+
+    @ Load CPSR for new thread (saved in slot 15) into SPSR_irq
+    ldr   r1, [sp, #(15*4)]
+    msr   spsr_fsxc, r1
+
+    @ Load exception LR (slot 14) into lr
+    ldr   r1, [sp, #(14*4)]
+    mov   lr, r1
+
+    @ Restore user/system SP (slot 13)
+    ldr   r1, [sp, #(13*4)]
+    cps   #0x1f
+    mov   sp, r1                    @ new thread's user/system SP
+    cps   #\mode                    @ back to IRQ mode, SP = SP_irq again
+    cpsid if                        @ Disable IRQ and FIQ in this mode
+
+    @ Now restore r0-r12 from slots 0..12
+    ldmia sp, {r0-r12}
+
+    @ Free the frame from IRQ stack
+    add   sp, sp, #CTX_FRAME_SIZE 
+
+    @ Return from IRQ into new thread context
+    subs  pc, lr, #\ret_adj
 .endm
 
 /* Tatsächliche Vector Table */

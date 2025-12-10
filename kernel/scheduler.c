@@ -59,6 +59,7 @@ void scheduler_init(void)
         g_threads[i].state = T_UNUSED;
         g_threads[i].stack_base = thread_stack_base(i);
         g_threads[i].stack_top  = thread_stack_top(i);
+        memset(&g_threads[i].ctx_storage, 0, sizeof(context_frame_t));
     }
 
     // Create idle thread
@@ -66,15 +67,10 @@ void scheduler_init(void)
     g_idle_tcb->state = T_RUNNING;
     memset(g_idle_tcb->stack_top, 0, STACK_SIZE);
 
-    uintptr_t sp = (uintptr_t)g_idle_tcb->stack_top;
-    sp -= sizeof(context_frame_t);
-    context_frame_t *frame = (context_frame_t *)sp;
-
-    frame->lr   = (uint32_t)idle_thread_fn + 4;
-    frame->cpsr = 0b10000       // user mode
-                | (1u << 6);    // FIQ disable
-
-    g_idle_tcb->ctx = frame;
+    g_idle_tcb->ctx_storage.sp_usr   = (uint32_t)g_idle_tcb->stack_top;
+    g_idle_tcb->ctx_storage.lr_exc   = (uint32_t)idle_thread_fn + 4;
+    g_idle_tcb->ctx_storage.cpsr_usr = 0b10000       // user mode
+                                 | (1u << 6);    // FIQ disable
 }
 
 void scheduler_pick_next(void)
@@ -101,7 +97,7 @@ void scheduler_pick_next(void)
 // Called from kernel (SVC mode)
 bool scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size)
 {
-    tcb_t *t = NULL;
+    tcb_t* t = NULL;
     unsigned int temp_rr_cursor = g_rr_cursor;
     for (unsigned int scanned = 0; scanned < MAX_THREADS; ++scanned) {
         unsigned int idx = temp_rr_cursor;
@@ -134,21 +130,14 @@ bool scheduler_thread_create(void(* func)(void *), const void * arg, unsigned in
         arg_ptr = sp;
         memcpy((void *)arg_ptr, arg, arg_size);
     }
-
-    // Reserve and initialize the initial context frame
-    sp -= sizeof(context_frame_t);
-    context_frame_t *frame = (context_frame_t *)sp;
-
-    frame->r0   = (uint32_t)func;                 // function to run
-    frame->r1   = (uint32_t)arg_ptr;              // argument pointer (copied onto stack)
-    frame->lr   = (uint32_t)thread_trampoline + 4;
-
-    // CPSR: user mode, interrupts enabled (bit pattern depends on your config)
-    // User mode = 0b10000
-    frame->cpsr = 0b10000       // user mode
-                | (1u << 6);    // FIQ disable
-
-    t->ctx   = frame;
+    
+    memset(&t->ctx_storage, 0, sizeof(context_frame_t));
+    t->ctx_storage.r0   = (uint32_t)func;                 // function to run
+    t->ctx_storage.r1   = (uint32_t)arg_ptr;              // argument pointer (copied onto stack)
+    t->ctx_storage.sp_usr   = (uint32_t)sp;
+    t->ctx_storage.lr_exc   = (uint32_t)thread_trampoline + 4;
+    t->ctx_storage.cpsr_usr = 0b10000       // user mode
+                            | (1u << 6);    // FIQ disable
     t->state = T_RUNNING;
 
     return true;
@@ -158,6 +147,6 @@ __attribute__((noreturn)) void scheduler_start(void)
 {
     scheduler_pick_next();
     systimer_increment_compare(1, TIMER_INTERVAL);
-    scheduler_first_context_restore(g_current->ctx);
+    scheduler_first_context_restore(&g_current->ctx_storage);
     __builtin_unreachable();
 }
