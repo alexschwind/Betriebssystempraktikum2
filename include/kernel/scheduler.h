@@ -15,11 +15,7 @@
 
 typedef enum {
     T_UNUSED = 0,
-    T_ALLOCATED,
-    T_READY,
     T_RUNNING,
-    T_BLOCKED,
-    T_ZOMBIE,
 } thread_state_t;
 
 typedef struct context_frame {

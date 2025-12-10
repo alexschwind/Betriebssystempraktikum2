@@ -1,5 +1,6 @@
 #include <kernel/handlers.h>
 #include <kernel/scheduler.h>
+#include <kernel/syscall.h>
 
 #include <lib/kprintf.h>
 
@@ -14,6 +15,12 @@
 #include <config.h>
 
 static void panic(char* msg) __attribute__((noreturn));
+
+static inline uint32_t decode_svc_number(context_frame_t *ctx)
+{
+	uint32_t svc_pc = ctx->lr - 4; // lr points to instruction after SVC
+	return (*(uint32_t *)svc_pc) & 0x00FFFFFF;
+}
 
 context_frame_t *irq_handler(context_frame_t *old)
 {
@@ -45,10 +52,23 @@ void undefined_handler()
 	}
 }
 
-void svc_handler()
+context_frame_t *svc_handler(context_frame_t *ctx)
 {
-	panic("SVC");
-	for (;;) {
+	if (g_current) {
+		g_current->ctx = ctx;
+	}
+
+	uint32_t svc_no = decode_svc_number(ctx);
+	switch (svc_no) {
+	case SYSCALL_EXIT:
+		if (g_current) {
+			g_current->state = T_UNUSED;
+		}
+		scheduler_pick_next();
+		kprintf("Thread exited\n");
+		return g_current->ctx;
+	default:
+		panic("Unknown SVC");
 	}
 }
 

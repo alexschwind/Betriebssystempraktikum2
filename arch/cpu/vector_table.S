@@ -13,7 +13,7 @@
 _vector_table:
 	b _start                            /* Restart */
 	b undefined_handler                 /* Undefined instruction */
-	b svc_handler                       /* Service Call */
+    b svc_handler_asm                   /* Service Call */
 	b prefetch_abort_handler            /* Prefetch abort */
 	b data_abort_handler                /* data abort */
 	nop                                 /* Not used here */
@@ -48,4 +48,26 @@ irq_handler_asm:
     add sp, sp, #CTX_FRAME_SIZE
 
     @ Exception return, back to user mode
+    subs pc, lr, #4
+
+svc_handler_asm:
+    sub sp, sp, #CTX_FRAME_SIZE
+
+    stmia sp, {r0-r12, lr}
+
+    mrs r1, spsr
+    str r1, [sp, #(14*4)]
+
+    mov r0, sp
+    bl svc_handler
+
+    mov sp, r0
+
+    ldr r1, [sp, #(14*4)]
+    msr spsr_fsxc, r1
+
+    ldmia sp, {r0-r12, lr}
+
+    add sp, sp, #CTX_FRAME_SIZE
+
     subs pc, lr, #4

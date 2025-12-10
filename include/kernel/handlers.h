@@ -6,10 +6,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+context_frame_t *irq_handler(context_frame_t *old);
+context_frame_t *svc_handler(context_frame_t *ctx);
 void undefined_handler [[noreturn]] ();
-void svc_handler [[noreturn]] ();
 void prefetch_abort_handler [[noreturn]] ();
 void data_abort_handler [[noreturn]] ();
-context_frame_t *irq_handler(context_frame_t *old);
 
 #endif

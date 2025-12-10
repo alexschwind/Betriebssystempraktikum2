@@ -6,6 +6,7 @@
 
 #include <lib/kprintf.h>
 #include <config.h>
+#include <string.h>
 
 static tcb_t    g_threads[MAX_THREADS];
 static uint8_t  g_stacks[MAX_THREADS][STACK_SIZE];
@@ -15,11 +16,6 @@ tcb_t *g_current = NULL;
 static tcb_t *g_idle_tcb = NULL;
 
 list_create(g_ready_queue);
-
-static inline tcb_t *ready_node_owner(list_node *node)
-{
-    return (tcb_t *)((uint8_t *)node - offsetof(tcb_t, ready_node));
-}
 
 static void ready_queue_push_back(tcb_t *tcb)
 {
@@ -37,8 +33,11 @@ static tcb_t *ready_queue_pop_front(void)
         return NULL;
     }
 
-    return ready_node_owner(node);
+    return (tcb_t *)((uint8_t *)node - offsetof(tcb_t, ready_node));
 }
+
+
+
 
 static void idle_thread_fn(void)
 {
@@ -49,8 +48,19 @@ static void idle_thread_fn(void)
     __builtin_unreachable();
 }
 
+static void thread_trampoline(void (*func)(void *), void *arg)
+{
+    func(arg);
+    syscall_exit();
+}
+
+
+
+
 void scheduler_init(void)
 {
+    memset(g_stacks, 0, sizeof(g_stacks));
+
     for (int i = 0; i < MAX_THREADS; ++i) {
         g_threads[i].state = T_UNUSED;
     }
@@ -76,6 +86,7 @@ void scheduler_init(void)
 
     g_idle_tcb->ctx = frame;
 
+    // TODO remove this demo thread creation later
     static char demo_chars[] = { 'A', 'B', 'C' };
     for (size_t i = 0; i < sizeof(demo_chars); ++i) {
         scheduler_thread_create(main, &demo_chars[i], sizeof(demo_chars[i]));
@@ -86,9 +97,8 @@ void scheduler_pick_next(void)
 {
     tcb_t *prev = g_current;
 
-    // If the previous thread is still runnable, put it at the end of the queue
-    if (prev && prev->state == T_RUNNING) {
-        prev->state = T_READY;
+    // If the previous thread is still runnable (and not idle), requeue it
+    if (prev && prev->state == T_RUNNING && prev != g_idle_tcb) {
         ready_queue_push_back(prev);
     }
 
@@ -102,33 +112,23 @@ void scheduler_pick_next(void)
     g_current = next;
 }
 
-static tcb_t *alloc_tcb(void)
-{
-    for (int i = 0; i < MAX_THREADS; ++i) {
-        if (g_threads[i].state == T_UNUSED) {
-            tcb_t *t = &g_threads[i];
-            t->state = T_ALLOCATED;
-            t->stack_base = g_stacks[i];
-            t->stack_top  = g_stacks[i] + STACK_SIZE;
-            t->ready_node = (list_node){0};
-            return t;
-        }
-    }
-    return NULL; // no free slots
-}
-
-static void thread_trampoline(void (*func)(void *), void *arg)
-{
-    func(arg);
-    syscall_exit();
-}
-
 // Called from kernel (SVC mode)
 int scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size)
 {
-    tcb_t *t = alloc_tcb();
+    tcb_t *t = NULL;
+    for (int i = 0; i < MAX_THREADS; ++i) {
+        if (g_threads[i].state == T_UNUSED) {
+            t = &g_threads[i];
+            t->state = T_RUNNING;
+            t->stack_base = g_stacks[i];
+            t->stack_top  = g_stacks[i] + STACK_SIZE;
+            t->ready_node = (list_node){0};
+            memset(t->stack_base, 0, STACK_SIZE);
+            break;
+        }
+    }
     if (!t)
-        return -1;
+        return -1; // No free slots
 
     // Start from top of stack (ARM stacks grow downward)
     uintptr_t sp = (uintptr_t)t->stack_top;
@@ -154,7 +154,6 @@ int scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int
     frame->cpsr = 0b10000;                      // + whatever flags you want set/cleared
 
     t->ctx   = frame;
-    t->state = T_READY;
 
     ready_queue_push_back(t);
     return 0;
