@@ -86,12 +86,15 @@ void scheduler_pick_next(void)
 
         if (candidate->state == T_RUNNING) {
             g_current = candidate;
+            if (prev != NULL && prev != g_current) {
+                uart_putc('\n');
+            }
             return;
         }
     }
 
     g_current = g_idle_tcb;
-    if (prev != NULL && prev != g_current && g_current != g_idle_tcb) {
+    if (prev != NULL && prev != g_idle_tcb) {
         uart_putc('\n');
     }
 }
