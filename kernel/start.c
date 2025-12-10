@@ -8,6 +8,8 @@
 
 #include <stdbool.h>
 
+#include <config.h>
+
 void start_kernel [[noreturn]] (void);
 void start_kernel [[noreturn]] (void)
 {
@@ -23,6 +25,7 @@ void start_kernel [[noreturn]] (void)
 	scheduler_init(); 
 
 	kprintf("=== Betriebssystem gestartet ===\n");
+	test_kernel();
 	
 	scheduler_start();
 

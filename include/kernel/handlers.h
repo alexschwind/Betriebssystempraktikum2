@@ -8,8 +8,8 @@
 
 context_frame_t *irq_handler(context_frame_t *old);
 context_frame_t *svc_handler(context_frame_t *ctx);
-void undefined_handler [[noreturn]] ();
-void prefetch_abort_handler [[noreturn]] ();
-void data_abort_handler [[noreturn]] ();
+context_frame_t *undefined_handler(context_frame_t *ctx);
+context_frame_t *prefetch_abort_handler(context_frame_t *ctx);
+context_frame_t *data_abort_handler(context_frame_t *ctx);
 
 #endif

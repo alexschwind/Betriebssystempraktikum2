@@ -48,15 +48,13 @@ Robin-Scheduler).
     - Innerhalb der Interrupt Behandlung wird nach dem Empfangen des Zeichens: S ein Supervisor Call ausgelöst, P ein Prefetch Abort erzeugt, A ein Data Abort erzeugt, U eine Undefined Instruction ausgeführt, bei allen anderen Zeichen ein neuer Thread erstellt, welcher die main Funktion aus Anhang A mit dem empfangenen Zeichen als Argument ausführt (Das erstellen von Threads in der Interrupt Behandlung ist i.d.R. nicht zu empfehlen. Der Bequemlichkeit halber erlauben wir dies hier trotzdem.)
 
 - Die in dem Beispiel aus Anhang A verwendeten Funktionen do_xyz() lösen jeweils die ihrem Namen entsprechende Ausnahme aus
-- Nach der Initialisierung eures Betriebssystems muss der String === Betriebssystem gestartet === aus-
-geben werden.
+- Nach der Initialisierung eures Betriebssystems muss der String === Betriebssystem gestartet === ausgeben werden.
 - Nach dieser Ausgabe ruft das Betriebssystem test_kernel() auf, welche in config.h deklariert ist
 - Nachdem test_kernel() aufgerufen wurde, wird der Scheduler ausgeführt
 
 # Hinweise
 - Achtet beim Initialisieren des PSR für einen neuen Thread darauf, dass alle Bits sinnvoll gesetzt sind.
 - Der Register Checker wird eine Warnung ausgeben, dass nicht alle Tests möglich sind aufgrund des User Modus. Dies ist in Ordnung.
-- In include/lib/list.h ist eine doppelt-verkettete Liste implementiert. Diese kann auch als Warteschlange verwendet werden.
 - Damit sich der Kernel in jeder Situation den Anforderungen entsprechend verhält, ist es sinnvoll, sicherzustellen, dass sich die Ausführung verschiedener Kernelfunktionen gegenseitig ausschließt. Da wir nur einen aktiven Kern haben, kann dies realisiert werden, in dem Interrupts im Kernel maskiert werden.
 
 # Anhang A

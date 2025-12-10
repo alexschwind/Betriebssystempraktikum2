@@ -95,6 +95,7 @@ void scheduler_pick_next(void)
     }
 
     g_current = g_idle_tcb;
+    uart_putc('\n');
 }
 
 // Called from kernel (SVC mode)
