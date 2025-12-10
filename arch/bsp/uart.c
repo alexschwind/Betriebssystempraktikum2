@@ -85,3 +85,17 @@ void uart_puts(const char *str)
 		uart_putc(*str++);
 	}
 }
+
+bool uart_getc_nonblocking(char *out)
+{
+	if (!out) {
+		return false;
+	}
+
+	if (buff_is_empty(uart_rx_buffer)) {
+		return false;
+	}
+
+	*out = buff_getc(uart_rx_buffer);
+	return true;
+}

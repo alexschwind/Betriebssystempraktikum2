@@ -1,5 +1,6 @@
 #include <kernel/handlers.h>
 #include <kernel/scheduler.h>
+#include <user/main.h>
 #include <kernel/syscall.h>
 
 #include <lib/kprintf.h>
@@ -28,6 +29,21 @@ context_frame_t *irq_handler(context_frame_t *old)
         g_current->ctx = old;
     }
 
+	if (irq_get_uart_pending()) {
+		if (uart_get_rx_interrupt_status()) {
+			uart_rx_into_buffer();
+		}
+		uart_clear_interrupt();
+		char c;
+		while (uart_getc_nonblocking(&c)) {
+			if (scheduler_thread_create(main, &c, sizeof(c)) == 0) {
+				kprintf("\n[irq] created thread for char '%c'\n", c);
+			} else {
+				kprintf("\n[irq] failed to create thread for char '%c'\n", c);
+			}
+		}
+	}
+
 	if (irq_get_systimer_pending(1)) {
 		systimer_clear_match(1);
 		systimer_increment_compare(1, TIMER_INTERVAL);
@@ -35,21 +51,7 @@ context_frame_t *irq_handler(context_frame_t *old)
 		scheduler_pick_next();
 	}
 
-	if (irq_get_uart_pending()) {
-		if (uart_get_rx_interrupt_status()) {
-			uart_rx_into_buffer();
-		}
-		uart_clear_interrupt();
-	}
-
 	return g_current->ctx;
-}
-
-void undefined_handler()
-{
-	panic("Undefined instruction");
-	for (;;) {
-	}
 }
 
 context_frame_t *svc_handler(context_frame_t *ctx)
@@ -58,17 +60,32 @@ context_frame_t *svc_handler(context_frame_t *ctx)
 		g_current->ctx = ctx;
 	}
 
+	__asm__ volatile("cpsid i" ::: "memory");
+	context_frame_t *next_ctx = ctx;
+
 	uint32_t svc_no = decode_svc_number(ctx);
 	switch (svc_no) {
 	case SYSCALL_EXIT:
 		if (g_current) {
 			g_current->state = T_UNUSED;
 		}
+		systimer_increment_compare(1, TIMER_INTERVAL);
 		scheduler_pick_next();
-		kprintf("Thread exited\n");
-		return g_current->ctx;
+		kprintf("\n[irq] thread exited\n");
+		next_ctx = g_current->ctx;
+		break;
 	default:
 		panic("Unknown SVC");
+	}
+
+	__asm__ volatile("cpsie i" ::: "memory");
+	return next_ctx;
+}
+
+void undefined_handler()
+{
+	panic("Undefined instruction");
+	for (;;) {
 	}
 }
 

@@ -9,7 +9,7 @@
 #include <string.h>
 
 static tcb_t    g_threads[MAX_THREADS];
-static uint8_t  g_stacks[MAX_THREADS][STACK_SIZE];
+static uint8_t  g_stacks[MAX_THREADS][STACK_SIZE] __attribute__((aligned(8)));;
 
 tcb_t *g_current = NULL;
 
@@ -33,7 +33,8 @@ static tcb_t *ready_queue_pop_front(void)
         return NULL;
     }
 
-    return (tcb_t *)((uint8_t *)node - offsetof(tcb_t, ready_node));
+    tcb_t *tcb = (tcb_t *)((uint8_t *)node - offsetof(tcb_t, ready_node));
+    return tcb;
 }
 
 
@@ -82,15 +83,10 @@ void scheduler_init(void)
         ((uint32_t *)frame)[i] = 0;
 
     frame->lr   = (uint32_t)idle_thread_fn + 4;
-    frame->cpsr = 0b10000; // user mode
+    frame->cpsr = 0b10000       // user mode
+                | (1u << 6);    // FIQ disable
 
     g_idle_tcb->ctx = frame;
-
-    // TODO remove this demo thread creation later
-    static char demo_chars[] = { 'A', 'B', 'C' };
-    for (size_t i = 0; i < sizeof(demo_chars); ++i) {
-        scheduler_thread_create(main, &demo_chars[i], sizeof(demo_chars[i]));
-    }
 }
 
 void scheduler_pick_next(void)
@@ -103,7 +99,7 @@ void scheduler_pick_next(void)
     }
 
     tcb_t *next = ready_queue_pop_front();
-    if (!next) {
+    if (!next || next->state != T_RUNNING) {
         // No ready threads; run idle
         next = g_idle_tcb;
     }
@@ -127,13 +123,25 @@ int scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int
             break;
         }
     }
-    if (!t)
+    if (!t) {
+        kprintf("[thread] create failed: no free TCBs\n");
         return -1; // No free slots
+    }
 
     // Start from top of stack (ARM stacks grow downward)
     uintptr_t sp = (uintptr_t)t->stack_top;
 
     // 8-byte align the stack (EABI requirement)
+    sp &= ~((uintptr_t)7);
+
+    uintptr_t arg_ptr = 0;
+    if (arg && arg_size) {
+        sp -= arg_size;
+        sp &= ~((uintptr_t)3);
+        arg_ptr = sp;
+        memcpy((void *)arg_ptr, arg, arg_size);
+    }
+
     sp &= ~((uintptr_t)7);
 
     // Reserve and initialize the initial context frame
@@ -145,13 +153,13 @@ int scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int
         ((uint32_t *)frame)[i] = 0;
 
     frame->r0   = (uint32_t)func;                 // function to run
-    frame->r1   = (uint32_t)arg;                  // argument
-    frame->r3   = (uint32_t)arg_size;             // argument size
+    frame->r1   = (uint32_t)arg_ptr;              // argument pointer (copied onto stack)
     frame->lr   = (uint32_t)thread_trampoline + 4;
 
     // CPSR: user mode, interrupts enabled (bit pattern depends on your config)
     // User mode = 0b10000
-    frame->cpsr = 0b10000;                      // + whatever flags you want set/cleared
+    frame->cpsr = 0b10000       // user mode
+                | (1u << 6);    // FIQ disable
 
     t->ctx   = frame;
 

@@ -1,6 +1,8 @@
 #ifndef UART_H
 #define UART_H
 
+#include <stdbool.h>
+
 #define UART_BASE (0x7E201000u - 0x3F000000u)
 
 struct uart {
@@ -32,6 +34,7 @@ void uart_init(void);
 char uart_getc(void);
 void uart_putc(char c);
 void uart_puts(const char *str);
+bool uart_getc_nonblocking(char *out);
 
 void	     uart_enable_rx_interrupt(void);
 unsigned int uart_get_rx_interrupt_status(void);

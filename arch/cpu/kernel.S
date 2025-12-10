@@ -11,7 +11,7 @@
 .global _bsprak
 _bsprak:
     /* Stacks für alle Modi vorbereiten */
-	/* Wir benutzen den FIQ und den User mode noch nicht */
+	/* Wir benutzen den FIQ noch nicht */
 	cpsid if                  /* Disable IRQ and FIQ */
 
 	cps	#0x13                 /* Switch to supervisor mode */
