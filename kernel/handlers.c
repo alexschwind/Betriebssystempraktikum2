@@ -52,6 +52,7 @@ context_frame_t *irq_handler(context_frame_t *old)
 		while (uart_getc_nonblocking(&c)) {
 			if (scheduler_thread_create(main, &c, sizeof(c)) == 0) {
 				kprintf("\n[irq] created thread for char '%c'\n", c);
+				scheduler_pick_next();
 			} else {
 				kprintf("\n[irq] failed to create thread for char '%c'\n", c);
 			}
