@@ -6,7 +6,17 @@
 
 #include <stddef.h>
 
+static void print_psr(unsigned int psr);
 static const char *get_fsr_description(unsigned int fsr);
+static const char *psr_mode_name(unsigned int psr);
+extern void read_mode_specific_registers_hw(struct mode_regs *out);
+
+struct mode_regs read_mode_specific_registers(void)
+{
+	struct mode_regs regs = {0};
+	read_mode_specific_registers_hw(&regs);
+	return regs;
+}
 
 #define r0 ((unsigned int)(frame->r0))
 #define r1 ((unsigned int)(frame->r1))
@@ -47,6 +57,26 @@ void print_exception_infos(context_frame_t *frame, const struct exception_info *
 	kprintf("R2: 0x%08x  R7: 0x%08x  R12: 0x%08x\n", r2, r7, r12);
 	kprintf("R3: 0x%08x  R8: 0x%08x\n", r3, r8);
 	kprintf("R4: 0x%08x  R9: 0x%08x\n", r4, r9);
+
+	struct mode_regs mode_regs = read_mode_specific_registers();
+
+	kprintf("\n>> Modusspezifische Register <<\n");
+	kprintf("User/System | LR: 0x%08x | SP: 0x%08x | CPSR: ",
+	    (unsigned int)mode_regs.user_lr, (unsigned int)mode_regs.user_sp);
+	print_psr((unsigned int)frame->cpsr_usr);
+	kprintf("\nIRQ         | LR: 0x%08x | SP: 0x%08x | SPSR: ",
+	    (unsigned int)mode_regs.irq_lr, (unsigned int)mode_regs.irq_sp);
+	print_psr((unsigned int)mode_regs.irq_spsr);
+	kprintf("\nAbort       | LR: 0x%08x | SP: 0x%08x | SPSR: ",
+	    (unsigned int)mode_regs.abort_lr, (unsigned int)mode_regs.abort_sp);
+	print_psr((unsigned int)mode_regs.abort_spsr);
+	kprintf("\nUndefined   | LR: 0x%08x | SP: 0x%08x | SPSR: ",
+	    (unsigned int)mode_regs.undefined_lr, (unsigned int)mode_regs.undefined_sp);
+	print_psr((unsigned int)mode_regs.undefined_spsr);
+	kprintf("\nSupervisor  | LR: 0x%08x | SP: 0x%08x | SPSR: ",
+	    (unsigned int)mode_regs.supervisor_lr, (unsigned int)mode_regs.supervisor_sp);
+	print_psr((unsigned int)mode_regs.supervisor_spsr);
+	kprintf("\n");
 }
 
 #undef r0
@@ -97,4 +127,62 @@ static const char *get_fsr_description(unsigned int fsr)
 	}
 
 	return fsr_sources[status];
+}
+
+#define PSR_FLAG(psr_value, bit) (((psr_value) >> (bit)) & 1U)
+
+static void print_psr(unsigned int psr)
+{
+	kprintf("%c%c%c%c %c %c%c%c",
+		PSR_FLAG(psr, 31) ? 'N' : '_',
+		PSR_FLAG(psr, 30) ? 'Z' : '_',
+		PSR_FLAG(psr, 29) ? 'C' : '_',
+		PSR_FLAG(psr, 28) ? 'V' : '_',
+		PSR_FLAG(psr, 9) ? 'E' : '_',
+		PSR_FLAG(psr, 7) ? 'I' : '_',
+		PSR_FLAG(psr, 6) ? 'F' : '_',
+		PSR_FLAG(psr, 5) ? 'T' : '_');
+
+	kprintf(" %s", psr_mode_name(psr));
+	kprintf(" 0x%08x", psr);
+}
+
+#undef PSR_FLAG
+
+static const char *psr_mode_name(unsigned int psr)
+{
+	static char padded[12];
+	static const char *const mode_names[32] = {
+		[0b10000] = "      User",
+		[0b10001] = "       FIQ",
+		[0b10010] = "       IRQ",
+		[0b10011] = "Supervisor",
+		[0b10111] = "     Abort",
+		[0b11011] = " Undefined",
+		[0b11111] = "    System",
+	};
+
+	const char *name = mode_names[psr & 0x1FU];
+	if (!name) {
+		name = "   Invalid";
+	}
+
+	unsigned int width = 8U;
+	unsigned int len = 0U;
+	while (name[len] != '\0') {
+		++len;
+	}
+
+	unsigned int pad = width > len ? width - len : 0U;
+	unsigned int pos = 0U;
+	while (pos < pad && pos < (unsigned int)(sizeof(padded) - 1U)) {
+		padded[pos++] = ' ';
+	}
+
+	for (unsigned int i = 0U; name[i] != '\0' && pos < (unsigned int)(sizeof(padded) - 1U); ++i) {
+		padded[pos++] = name[i];
+	}
+
+	padded[pos] = '\0';
+	return padded;
 }

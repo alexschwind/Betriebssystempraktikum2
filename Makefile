@@ -70,7 +70,7 @@
 BIN_LSG = 
 
 # arch/cpu
-SRC = arch/cpu/entry.S arch/cpu/stacks.S arch/cpu/vector_table.S arch/cpu/kernel.S 
+SRC = arch/cpu/entry.S arch/cpu/stacks.S arch/cpu/vector_table.S arch/cpu/kernel.S  arch/cpu/mode_regs.S
 
 # arch/bsp
 SRC += arch/bsp/gpio.c arch/bsp/irq.c arch/bsp/systimer.c arch/bsp/uart.c
