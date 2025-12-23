@@ -1,93 +1,54 @@
-# Kontextwechsel und präemptives Multitasking
-In dieser Aufgabe soll unser Betriebssystem um die Fähigkeit des präemptiven Multitaskings erweitert werden, um so mehrere Threads quasi-parallel ausführen zu können. Der Timer dient dabei als Zeitgeber und gibt das Intervall vor, in dem der Kern den gerade ausgeführten Thread automatisch wechselt.
+# User / Kernel Interface
+Wir definieren eine ordentliche Schnittstelle zwischen Anwendungen und Betriebssystem und führen blockierende Systemrufe ein, damit wartende Threads nicht unnötig die CPU blockieren.
 
-# Aufgaben
-1. eine Threadverwaltung implementieren, die ein Minimum von 32 Threads unterstützt.
-2. einen Kontextwechsel ermöglichen. Dafür ist es u.a. notwendig, nach Eintritt in eine Ausnahme
-    1. die Register auf dem Stack zu sichern,
-    2. die Register eines Threads in dessen TCB zu sichern,
-    3. den nächsten Thread zu ermitteln und dessen Werte auszutauschen,
-    4. die Register wiederherzustellen und
-    5. aus der Ausnahme zurückzuspringen.
-3. einen Scheduler zu implementieren, der regelmäßig einen Kontextwechsel anstößt. Es soll kein Thread verhungern und die verfügbare CPU-Zeit gleichmäßig zwischen den Threads aufgeteilt werden (z.B. eine Round-
-Robin-Scheduler).
-4. einen Supervisor Call zu implementieren, der einen Thread beendet.
-5. euch zu überlegen, wie ihr mit dem Fall umgeht, dass es keine Threads zum Ausführen gibt.
-6. den Ausnahme-Handler so anzupassen, dass kein Thread das Betriebssystem zum Absturz bringen kann.
+1. ✅Legt eine dokumentierte Aufrufkonvention für Systemrufe mittels SVC fest.
+2. ✅Implementiert die Systemrufe syscall_exit, syscall_putc, syscall_getc, syscall_create und syscall_sleep.
+3. ✅Stellt sicher, dass die Anwendungen und der Kernel unabhängig voneinander gebaut werden können.
 
 ## Details
-- Es gibt eine Threadverwaltung, die mindestens 32 Threads unterstützt (Ein Idel-Thread zählt zu diesen 32 Threads, also müssen nur 31 reguläre Threads unterstützt werden.) 
+1. Es gibt eine dokumentierte Aufrufkonvention für Systemaufrufe mittels SVC
+2. Threads können über die Funktion...
+	- ✅void syscall_exit [[noreturn]] (void) einen Syscall auslösen, um sich selbst zu beenden
+	- ✅void syscall_create_thread(void (*f) (void *), void * args, unsigned int arg_size) einen Syscall auslösen, um einen neuen Thread zu erstellen
+	- char syscall_getc(void) einen Syscall auslösen, um ein Zeichen einzulesen
+	- ✅void syscall_putc(char c) einen Syscall auslösen, um ein Zeichen auszugeben
+	- ✅void syscall_sleep(unsigned int cycles) einen Syscall auslösen, um sich selbst für mindestens cycles-viele Zeitscheiben nicht ausführen zu lassen (Angefangene Zeitscheiben dürfen als ganze gezählt werden.)
+	- ✅void syscall_undefined(void) einen dem Kernel unbekannten Syscall ausführen
 
-- Threads können über void scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size), erstellt werden, wobei func die Einstiegs-Funktion des neuen Threads ist, arg ein Pointer auf die Argumente der Länge arg_size, ist, die auf den Stack des neuen Threads zu kopieren sind
+3. Die Systemaufrufe syscall_getc und syscall_sleep arbeiten blockierend, d.h. die Threads werden so lange vom Scheduler nicht erfasst, bis ein Zeichen eingelesen werden konnte, oder entsprechend die Anzahl der Zeitscheiben abgelaufen ist
 
-- Wenn kein Thread erstellt werden konnte, weil bereits alle Threads verwendet sind, wird „Could not create thread.” ausgegeben und keine Aktion getätigt
-
-- Die Einstiegs-Funktion des Threads kriegt beim Start einen Pointer auf das auf den Stack kopierte Argument übergeben
-
-- Jeder Thread hat einen eigenen Stack, welcher mindestens 1KiB groß ist 
-
-- Es gibt eine Funktion void syscall_exit(void), die einen svc ausführt. Jeder svc verursacht, dass der Thread, der diesen ausführte, beendet wird (Wenn ein Thread beendet wird soll kein Registerdump ausgegeben werden.)
-
-- Threads werden beendet, wenn diese die Einstiegs-Funktion beenden, auch wenn, hierbei nicht explizit syscall_exit aufgerufen wird
-
-- Threads werden von einem Scheduler regelmäßig ausgeführt. Dabei ist zu beachten, dass
-    - die verfügbare CPU-Zeit gleichmäßig zwischen den Threads aufgeteilt wird
-    - die Länge der Zeitscheiben von TIMER_INTERVAL aus config.h abhängig ist
-    - der Scheduler nicht unnötig wartet, d.h. wenn ein Thread ausgeführt werden kann, dieser ausgeführt wird
-    - der Scheduler damit umgehen kann, dass kein Thread ausgeführt werden kann
-
-- Ein Thread kann den Kernel nicht zum Abstürzen bringen
-- Wenn ein Thread abstürzt, wird dieser mit einem Registerdump beendet
-- Wenn der Kernel abstürzt, wird ein Registerdump ausgegeben und der gesamte Kernel angehalten
-- Threads werden im User Modus ausgeführt
+4. Ein Thread ist nicht in der Lage, den Kernel zum Abstürzen zu bringen,insbesondere nicht durch das Auslösen von Ausnahmen
 
 
-- Zur Demonstration der Funktionalität müssen außerdem die folgenden Anforderungen erfüllt werden
-    - Bei jedem Kontextwechsel wird ein Zeilenumbruch ausgegeben.
-    - Bei jedem Timer-Interrupt wird ein Ausrufezeichen ausgegeben.
-    - Innerhalb der Interrupt Behandlung wird nach dem Empfangen des Zeichens: S ein Supervisor Call ausgelöst, P ein Prefetch Abort erzeugt, A ein Data Abort erzeugt, U eine Undefined Instruction ausgeführt, bei allen anderen Zeichen ein neuer Thread erstellt, welcher die main Funktion aus Anhang A mit dem empfangenen Zeichen als Argument ausführt (Das erstellen von Threads in der Interrupt Behandlung ist i.d.R. nicht zu empfehlen. Der Bequemlichkeit halber erlauben wir dies hier trotzdem.)
+5. ✅Der Aufruf eines unbekannten Syscalls beendet den Thread, der diesen tätigte, und gibt einen Register Dump des Threads aus
 
-- Die in dem Beispiel aus Anhang A verwendeten Funktionen do_xyz() lösen jeweils die ihrem Namen entsprechende Ausnahme aus
-- Nach der Initialisierung eures Betriebssystems muss der String === Betriebssystem gestartet === ausgeben werden.
-- Nach dieser Ausgabe ruft das Betriebssystem test_kernel() auf, welche in config.h deklariert ist
-- Nachdem test_kernel() aufgerufen wurde, wird der Scheduler ausgeführt
 
-# Hinweise
-- Achtet beim Initialisieren des PSR für einen neuen Thread darauf, dass alle Bits sinnvoll gesetzt sind.
-- Der Register Checker wird eine Warnung ausgeben, dass nicht alle Tests möglich sind aufgrund des User Modus. Dies ist in Ordnung.
+6. ✅Wird ein Syscall aus dem Kernel heraus aufgerufen, so wird ein Registerdump ausgegeben, der gesamte Kernel angehalten, und anschließend \4 ausgegeben
+
+
+7. Empfangene Zeichen werden, wenn sie nicht direkt verwendet werden können, in einem Ringbuffer gesichert
+
+
+8. ✅Der Kernel muss vom User Code unabhängig baubar sein. Insbesondere müssen make kernel_only und make user_only funktionieren und die verschiedenen Code-Dateien den Variablen SRC und USRC sinnvoll zugeordnet werden
+9. ✅Nach der Initialisierung eures Betriebssystems muss der String === Betriebssystem gestartet === ausgeben werden
+10. ✅Nach dieser Ausgabe ruft das Betriebssystem test_kernel() auf, welche in config.h deklariert ist
+11. ✅Nachdem test_kernel() aufgerufen wurde, wird der Scheduler ausgeführt
+12. ✅Zur Demonstration führt der initiale Thread die Funktion main aus dem Anhang aus
+
+13. ✅Desweiteren führt der Kernel den zu syscall_exit() korrespondierenden Syscall aus, sobald ein S empfangen wurde
+
+## Hinweise
+- Damit Zeichen empfangen werden können, müssen Interrupts innerhalb der Threads aktiv sein.
+- An gewissen kritischen Punkten gestaltet sich die komplette Trennung von Kernel und User schwierig. Zum Beispiel muss der Kernel das Label für den initialen Thread kennen. Informiert euch hierfür über die Verwendung von [[gnu::weak]] bzw. [[gnu::weak, gnu::alias()]], um das Problem zu umgehen.
+- Überlegt euch auch, wie der Syscall syscall_sleep mit dem Wert 0 umgehen sollte.
 - Damit sich der Kernel in jeder Situation den Anforderungen entsprechend verhält, ist es sinnvoll, sicherzustellen, dass sich die Ausführung verschiedener Kernelfunktionen gegenseitig ausschließt. Da wir nur einen aktiven Kern haben, kann dies realisiert werden, in dem Interrupts im Kernel maskiert werden.
 
-# Anhang A
 
-```c
-#include <user/main.h>
-#include <tests/regcheck.h>
-#include <config.h>
+## Demonstration
+Bei der aus dem Demonstartions-Code resultierenden Ausgaben ist insbesondere das zeitliche Verhalten spannend. Die folgenden Beispiele gehen davon aus, dass qemu mit -icount 9 ausgeführt wurde, BUSY_WAIT_COUNTER den Wert 300000, PRINT_COUNT den Wert 10 und TIMER_INTERVAL den Wert 1000000 hat.
 
-void main(void * args) {
-	test_user(args);
-	char c = *((char *) args);
-	switch (c) {
-		case 'a':
-			do_data_abort();
-			return;
-		case 'p':
-			do_prefetch_abort();
-			return;
-		case 'u':
-			do_undef();
-			return;
-		case 's':
-			do_svc();
-			return;
-		case 'c':
-			register_checker();
-			return;
-	}
-	
-	for(unsigned int n = 0; n < PRINT_COUNT; n++){
-		for(volatile unsigned int i = 0; i < BUSY_WAIT_COUNTER; i++){}
-		uart_putc(c);
-	}
-}
-```
+2x aktives Warten ((sleep 1; echo -n "BC") | make qemu): BCBBCBBCBBCBBCBCCCCC
+1x aktiv + 1x passiv ((sleep 1; echo -n "bC") | make qemu): bCbCbbCbbCbCbbCbCCCC
+2x passiv ((sleep 1; echo -n "bc") | make qemu): bcbcbcbbcbcbbcbcbccc
+1x aktiv + 2x passiv ((sleep 1; echo -n "Bcd") | make qemu): BcdBBcdBBcBdcBBdcBBcdcdcdccddd
+2x aktiv + 1x passiv ((sleep 1; echo -n "BCd") | make qemu): BCdBBdCBdBCBdBCdBBdCBdCdCCdCdC

@@ -76,12 +76,12 @@ SRC = arch/cpu/entry.S arch/cpu/stacks.S arch/cpu/vector_table.S arch/cpu/kernel
 SRC += arch/bsp/gpio.c arch/bsp/irq.c arch/bsp/systimer.c arch/bsp/uart.c
 
 # kernel
-SRC += kernel/start.c kernel/handlers.c kernel/scheduler.c
+SRC += kernel/start.c kernel/handlers.c kernel/scheduler.c kernel/syscall_dispatch.c
 
 # lib
 SRC += lib/kprintf.c lib/mem.c lib/exception_print.c
 
-# tests
+# tests that run in kernel mode
 SRC += tests/regcheck.c tests/regcheck_asm.S
 
 # Hier separate user source files hinzufügen

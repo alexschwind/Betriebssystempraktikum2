@@ -1,7 +1,6 @@
 #include <kernel/handlers.h>
 #include <kernel/scheduler.h>
-#include <user/main.h>
-#include <kernel/syscall.h>
+#include <kernel/syscall_dispatch.h>
 
 #include <lib/kprintf.h>
 
@@ -23,10 +22,7 @@ static uint32_t read_dfar(void);
 static uint32_t read_ifsr(void);
 static uint32_t read_ifar(void);
 static bool is_user_thread(const context_frame_t *ctx);
-static void trigger_kernel_data_abort(void) __attribute__((noreturn));
-static void trigger_kernel_prefetch_abort(void) __attribute__((noreturn));
 static void trigger_kernel_svc(void) __attribute__((noreturn));
-static void trigger_kernel_undef(void) __attribute__((noreturn));
 
 static inline context_frame_t *current_ctx_storage(void)
 {
@@ -55,56 +51,50 @@ static inline context_frame_t *report_context(context_frame_t *fallback)
 	return ctx ? ctx : fallback;
 }
 
-static inline uint32_t decode_svc_number(context_frame_t *ctx)
-{
-	uint32_t svc_pc = ctx->lr_exc - 4; // lr points to instruction after SVC
-	return (*(uint32_t *)svc_pc) & 0x00FFFFFF;
-}
-
 void irq_handler(context_frame_t *ctx)
 {
 	// Save old context into tcb if available
 	save_current_context(ctx);
-	
-	bool should_do_context_switch = false;
 
 	if (irq_get_uart_pending()) {
 		if (uart_get_rx_interrupt_status()) {
-			uart_rx_into_buffer();
+			while (uart_rx_data_available()) {
+				char c = uart_rx_get_char();
+				if (c == 'S') {
+					trigger_kernel_svc();
+					continue;
+				}
+				if (!uart_buffer_putc(c)) {
+					break;
+				}
+			}
 		}
 		uart_clear_interrupt();
-		char c;
-		while (uart_getc_nonblocking(&c)) {
-			switch (c) {
-			case 'S':
-				trigger_kernel_svc();
-				break;
-			case 'P':
-				trigger_kernel_prefetch_abort();
-				break;
-			case 'A':
-				trigger_kernel_data_abort();
-				break;
-			case 'U':
-				trigger_kernel_undef();
-				break;
-			default:
-				if (scheduler_thread_create(main, &c, sizeof(c))) {
-					should_do_context_switch = true;
-				}
+
+		while (scheduler_has_waiting_input()) {
+			char available;
+			if (!uart_peekc(&available)) {
 				break;
 			}
+
+			tcb_t *waiter = scheduler_pop_next_input_waiter();
+			if (!waiter) {
+				break;
+			}
+
+			char delivered;
+			if (!uart_getc_nonblocking(&delivered)) {
+				break;
+			}
+
+			waiter->ctx_storage.r0 = (uint32_t)(uint8_t)delivered;
 		}
 	}
 
 	if (irq_get_systimer_pending(1)) {
 		systimer_clear_match(1);
 		systimer_increment_compare(1, TIMER_INTERVAL);
-		uart_putc('!');
-		should_do_context_switch = true;
-	}
-	
-	if (should_do_context_switch) {
+		scheduler_tick();
 		scheduler_pick_next();
 	}
 
@@ -115,8 +105,6 @@ void irq_handler(context_frame_t *ctx)
 void svc_handler(context_frame_t *ctx)
 {
 	__asm__ volatile("cpsid i" ::: "memory");
-
-	// Save old context into tcb
 	save_current_context(ctx);
 
 	context_frame_t *fault_ctx = report_context(ctx);
@@ -130,21 +118,35 @@ void svc_handler(context_frame_t *ctx)
 		panic();
 	}
 
-	if (g_current) {
-		g_current->state = T_UNUSED;
+	syscall_result_t result = syscall_dispatch(ctx);
+	context_frame_t *stored_ctx = current_ctx_storage();
+	if (stored_ctx) {
+		if (result.handled) {
+			stored_ctx->r0 = result.value;
+		}
+		if (result.advance_pc) {
+			stored_ctx->lr_exc += 4u;
+		}
 	}
 
-	/* Later we can differentiate SVC numbers here
-	uint32_t svc_no = decode_svc_number(ctx);
-	switch (svc_no) {
-		case SYSCALL_EXIT:
-		...
-	*/
+	if (!result.handled) {
+		struct exception_info info = {
+			.exception_name		 = "Unknown Syscall",
+			.exception_source_addr = fault_ctx ? fault_ctx->lr_exc - 4u : 0u,
+		};
 
-	systimer_increment_compare(1, TIMER_INTERVAL);
-	scheduler_pick_next();
+		print_exception_infos(fault_ctx, &info);
+		if (g_current) {
+			g_current->state = T_UNUSED;
+		}
+		result.reschedule = true;
+	}
 
-	// Restore new context from tcb
+	if (result.reschedule) {
+		systimer_increment_compare(1, TIMER_INTERVAL);
+		scheduler_pick_next();
+	}
+
 	restore_current_context(ctx);
 	__asm__ volatile("cpsie i" ::: "memory");
 }
@@ -152,7 +154,6 @@ void svc_handler(context_frame_t *ctx)
 void undefined_handler(context_frame_t *ctx)
 {
 	__asm__ volatile("cpsid i" ::: "memory");
-	// Save old context into tcb
 	save_current_context(ctx);
 
 	context_frame_t *fault_ctx = report_context(ctx);
@@ -174,7 +175,6 @@ void undefined_handler(context_frame_t *ctx)
 	systimer_increment_compare(1, TIMER_INTERVAL);
 	scheduler_pick_next();
 
-	// Restore new context from tcb
 	restore_current_context(ctx);
 	__asm__ volatile("cpsie i" ::: "memory");
 }
@@ -182,7 +182,6 @@ void undefined_handler(context_frame_t *ctx)
 void prefetch_abort_handler(context_frame_t *ctx)
 {
 	__asm__ volatile("cpsid i" ::: "memory");
-	// Save old context into tcb
 	save_current_context(ctx);
 
 	context_frame_t *fault_ctx = report_context(ctx);
@@ -207,7 +206,6 @@ void prefetch_abort_handler(context_frame_t *ctx)
 	systimer_increment_compare(1, TIMER_INTERVAL);
 	scheduler_pick_next();
 
-	// Restore new context from tcb
 	restore_current_context(ctx);
 	__asm__ volatile("cpsie i" ::: "memory");
 }
@@ -215,7 +213,6 @@ void prefetch_abort_handler(context_frame_t *ctx)
 void data_abort_handler(context_frame_t *ctx)
 {
 	__asm__ volatile("cpsid i" ::: "memory");
-	// Save old context into tcb
 	save_current_context(ctx);
 
 	context_frame_t *fault_ctx = report_context(ctx);
@@ -240,7 +237,6 @@ void data_abort_handler(context_frame_t *ctx)
 	systimer_increment_compare(1, TIMER_INTERVAL);
 	scheduler_pick_next();
 
-	// Restore new context from tcb
 	restore_current_context(ctx);
 	__asm__ volatile("cpsie i" ::: "memory");
 }
@@ -249,9 +245,12 @@ static void panic(void)
 {
 	__asm__ volatile("cpsid if" : : : "memory");
 
+	uart_putc('\4'); // End-of-transmission character to signal panic
+
 	for (;;) {
 		__asm__ volatile("wfi" ::: "memory");
 	}
+	__builtin_unreachable();
 }
 
 static uint32_t read_dfsr(void)
@@ -291,27 +290,16 @@ static bool is_user_thread(const context_frame_t *ctx)
 	return mode == 0x10u || mode == 0x1Fu; // TODO maybe only user mode
 }
 
-static void trigger_kernel_data_abort(void)
-{
-	volatile unsigned int *ptr = (volatile unsigned int *)0x00000001u;
-	*ptr = 0xDEADBEEFu;
-	__builtin_unreachable();
-}
-
-static void trigger_kernel_prefetch_abort(void)
-{
-	__asm__ volatile("bkpt #0" ::: "memory");
-	__builtin_unreachable();
-}
-
 static void trigger_kernel_svc(void)
 {
-	__asm__ volatile("svc #1" ::: "memory");
-	__builtin_unreachable();
-}
+	register uint32_t r0 __asm__("r0") = (uint32_t)0u;
+    register uint32_t r1 __asm__("r1") = 0u;
+    register uint32_t r2 __asm__("r2") = 0u;
+    register uint32_t r3 __asm__("r3") = 0u;
 
-static void trigger_kernel_undef(void)
-{
-	__asm__ volatile(".word 0xe7f000f0" ::: "memory");
+    __asm__ volatile ("svc #0"
+                      : "+r"(r0)
+                      : "r"(r1), "r"(r2), "r"(r3)
+                      : "memory");
 	__builtin_unreachable();
 }

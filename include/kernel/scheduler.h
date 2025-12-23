@@ -11,9 +11,13 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include <lib/list.h>
+
 typedef enum {
     T_UNUSED = 0,
     T_RUNNING,
+    T_SLEEPING,
+    T_WAITING_IO,
 } thread_state_t;
 
 typedef struct context_frame {
@@ -41,6 +45,8 @@ typedef struct tcb {
     thread_state_t     state;
     uint8_t*           stack_base;
     uint8_t*           stack_top;
+    uint32_t           sleep_ticks;
+    list_node          wait_node;
 } tcb_t;
 
 extern tcb_t* g_current;
@@ -50,6 +56,11 @@ extern void scheduler_first_context_restore(context_frame_t *ctx);
 void scheduler_pick_next(void);
 bool scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size);
 void scheduler_init(void);
+void scheduler_sleep_current(uint32_t ticks);
+void scheduler_tick(void);
+bool scheduler_block_current_on_input(void);
+bool scheduler_has_waiting_input(void);
+tcb_t *scheduler_pop_next_input_waiter(void);
 __attribute__((noreturn)) void scheduler_start(void);
 
 #endif /* __ASSEMBLER__ */

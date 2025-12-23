@@ -1,56 +1,36 @@
 #include <user/main.h>
-#include <tests/regcheck.h>
+
 #include <config.h>
+#include <syscall.h>
 
-static void do_prefetch_abort(void);
-static void do_data_abort(void);
-static void do_svc(void);
-static void do_undef(void);
+#include <stdbool.h>
 
-void main(void * args) {
+void worker_thread(void * args) {
 	test_user(args);
+
 	char c = *((char *) args);
-	switch (c) {
-		case 'a':
-			do_data_abort();
-			return;
-		case 'p':
-			do_prefetch_abort();
-			return;
-		case 'u':
-			do_undef();
-			return;
-		case 's':
-			do_svc();
-			return;
-		case 'c':
-			register_checker();
-			return;
+	if( c == 's' ) {
+		syscall_undefined();
 	}
 	
-	for(unsigned int n = 0; n < PRINT_COUNT; n++){
-		for(volatile unsigned int i = 0; i < BUSY_WAIT_COUNTER; i++){}
-		uart_putc(c);
+	for(unsigned int i = 0; i < PRINT_COUNT; i++) {
+		syscall_putc(c);
+
+		if( c >= 'A' && c <= 'Z') {
+			for(volatile unsigned int j=0; j<BUSY_WAIT_COUNTER * ((unsigned int)c-'A');j++);
+		} else if ( c >= 'a' && c <= 'z') {
+			syscall_sleep((unsigned int) c - 'a');
+		} else {
+			syscall_sleep(1);
+		}
 	}
 }
 
-static void do_data_abort(void)
-{
-	volatile unsigned int *ptr = (volatile unsigned int *)0x00000001u;
-	*ptr			   = 0xDEADBEEFu;
-}
+void main(void) {
+	test_user_main();
 
-static void do_prefetch_abort(void)
-{
-	__asm__ volatile("bkpt #0" ::: "memory");
-}
-
-static void do_svc(void)
-{
-	__asm__ volatile("svc #1" ::: "memory");
-}
-
-static void do_undef(void)
-{
-	__asm__ volatile(".word 0xe7f000f0" ::: "memory");
+	while(true) {
+		char c = syscall_getc();
+		syscall_create_thread(worker_thread, &c, sizeof(c));
+	}
 }

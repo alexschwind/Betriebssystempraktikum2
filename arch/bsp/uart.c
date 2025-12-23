@@ -55,6 +55,14 @@ void uart_rx_into_buffer(void)
 	}
 }
 
+bool uart_rx_data_available(void){
+	return !(uart->fr & (1u << 4));
+}
+
+char uart_rx_get_char(void) {
+	return (char)(uart->dr & 0xFF);
+}
+
 char uart_getc(void)
 {
 	while (buff_is_empty(uart_rx_buffer)) {
@@ -97,5 +105,29 @@ bool uart_getc_nonblocking(char *out)
 	}
 
 	*out = buff_getc(uart_rx_buffer);
+	return true;
+}
+
+bool uart_peekc(char *out)
+{
+	if (!out) {
+		return false;
+	}
+
+	if (buff_is_empty(uart_rx_buffer)) {
+		return false;
+	}
+
+	*out = uart_rx_buffer->buffer[uart_rx_buffer->tail & uart_rx_buffer->mask];
+	return true;
+}
+
+bool uart_buffer_putc(char c)
+{
+	if (buff_is_full(uart_rx_buffer)) {
+		return false;
+	}
+
+	buff_putc(uart_rx_buffer, c);
 	return true;
 }
