@@ -114,7 +114,6 @@ void scheduler_init(void)
 
 void scheduler_pick_next(void)
 {
-    tcb_t* prev = g_current;
     for (unsigned int scanned = 0; scanned < MAX_THREADS; ++scanned) {
         unsigned int idx = g_rr_cursor;
         g_rr_cursor = (g_rr_cursor + 1u) % MAX_THREADS;
