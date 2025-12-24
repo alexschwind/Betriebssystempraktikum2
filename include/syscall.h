@@ -45,12 +45,12 @@ static inline char syscall_getc(void)
     return (char)syscall_invoke(SYSCALL_ID_GETC, 0u, 0u, 0u);
 }
 
-static inline int syscall_create_thread(void (*func)(void *), void *args, unsigned int arg_size)
+static inline void syscall_create_thread(void (*func)(void *), void *args, unsigned int arg_size)
 {
-    return (int)syscall_invoke(SYSCALL_ID_CREATE_THREAD,
-                               (uint32_t)func,
-                               (uint32_t)args,
-                               (uint32_t)arg_size);
+    (void)syscall_invoke(SYSCALL_ID_CREATE_THREAD,
+                         (uint32_t)func,
+                         (uint32_t)args,
+                         (uint32_t)arg_size);
 }
 
 static inline void syscall_sleep(unsigned int cycles)

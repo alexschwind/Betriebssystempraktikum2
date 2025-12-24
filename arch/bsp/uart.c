@@ -15,9 +15,7 @@ void uart_init(void)
 	gpio_set_alt_function(15, 0); // Set GPIO15 to ALT0 (UART0 RX)
 
 	uart->cr &= ~1u; // disable UART
-	while (uart->fr & (1u << 3)) { // wait for end of transmission
-		/* wait */
-	}
+	while (uart->fr & (1u << 3)) {} // wait for end of transmission 
 	uart->imsc = 0u; // disable all interrupts
 	uart->icr  = 0x7FFu; // clear all interrupts
 	uart->lcrh &= ~(1u << 4); // flush and disable FIFOs
@@ -66,7 +64,6 @@ char uart_rx_get_char(void) {
 char uart_getc(void)
 {
 	while (buff_is_empty(uart_rx_buffer)) {
-		/* If the ring buffer is empty but the hardware FIFO has data, grab one byte. */
 		if (!(uart->fr & (1u << 4))) {
 			buff_putc(uart_rx_buffer, (char)(uart->dr & 0xFF));
 			break;

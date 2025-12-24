@@ -156,6 +156,11 @@ bool scheduler_thread_create(void(* func)(void *), const void * arg, unsigned in
         return false; // No free slots
     }
 
+    if (arg_size > STACK_SIZE) {
+        kprintf("Thread argument block too large.\n");
+        return false;
+    }
+
     memset(t->stack_top, 0, STACK_SIZE);
 
     // Start from top of stack (ARM stacks grow downward)

@@ -13,7 +13,6 @@ void systimer_clear_match(unsigned int timer)
 		return;
 	}
 
-	/* Writing a 1 clears the pending flag for the selected compare channel. */
 	systimer->cs = (1u << timer);
 }
 
@@ -38,6 +37,6 @@ void systimer_increment_compare(unsigned int timer, unsigned int interval)
 		systimer->c3 = now + interval;
 		return;
 	default:
-		return; // Should never reach here due to earlier check
+		return; 
 	}
 }

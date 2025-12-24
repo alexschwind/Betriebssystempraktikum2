@@ -66,7 +66,7 @@ static syscall_result_t handle_create_thread(const context_frame_t *ctx)
 	void *arg = (void *)ctx->r2;
 	unsigned int arg_size = (unsigned int)ctx->r3;
 	bool created = scheduler_thread_create(func, arg, arg_size);
-	return make_result(created ? 0u : 1u, created, true);
+	return make_result(created ? 0u : 1u, false, true);
 }
 
 static syscall_result_t handle_sleep(const context_frame_t *ctx)
