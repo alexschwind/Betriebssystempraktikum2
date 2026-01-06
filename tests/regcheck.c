@@ -1,5 +1,5 @@
-#include <lib/kprintf.h> // Platzahlter für die Headerdatei, die euer kprintf enthält
-#include <tests/regcheck.h> // Platzahlter für den Ort, den ihr wählt
+#include <lib/kprintf.h>
+#include <tests/regcheck.h> 
 #include <config.h>
 
 static constexpr unsigned int QEMU_CHECK_COUNT = 30;

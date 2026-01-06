@@ -15,12 +15,8 @@ struct systimer {
 
 extern volatile struct systimer *const systimer;
 
-void systimer_clear_match(
-	unsigned int
-		timer); // Write a one to the relevant bit to clear the match detect status bit and the corresponding interrupt request line.
+void systimer_clear_match(unsigned int timer); 
 
-void systimer_increment_compare(
-	unsigned int timer,
-	unsigned int interval); // Increment the compare register by the given interval.
+void systimer_increment_compare(unsigned int timer, unsigned int interval); 
 
 #endif

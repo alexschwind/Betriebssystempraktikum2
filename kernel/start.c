@@ -10,13 +10,8 @@
 
 #include <config.h>
 
-void start_kernel [[noreturn]] (void);
-void start_kernel [[noreturn]] (void)
+__attribute__((noreturn)) void start_kernel (void)
 {
-	// called from kernel.S
-	// interrupts are disabled
-	// in supervisor mode
-
 	uart_init();
 	uart_enable_rx_interrupt();
 	irq_enable_uart();

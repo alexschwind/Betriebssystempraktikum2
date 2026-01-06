@@ -2,48 +2,48 @@
 
 .section .stacks, "aw", %nobits
 
-.global __stack_sys_base
-.global __stack_sys_top
-.global __stack_svc_base
-.global __stack_svc_top
-.global __stack_irq_base
-.global __stack_irq_top
-.global __stack_abt_base
-.global __stack_abt_top
-.global __stack_und_base
-.global __stack_und_top
+.global _stack_sys_base
+.global _stack_sys_top
+.global _stack_svc_base
+.global _stack_svc_top
+.global _stack_irq_base
+.global _stack_irq_top
+.global _stack_abt_base
+.global _stack_abt_top
+.global _stack_und_base
+.global _stack_und_top
 
 .balign 64
-__stack_sys_base:
+_stack_sys_base:
 .space 1024
 .balign 8
-__stack_sys_top:
+_stack_sys_top:
 .balign 8
-__stack_svc_base:
+_stack_svc_base:
 .space 1024
 .balign 8
-__stack_svc_top:
+_stack_svc_top:
 .balign 8
-__stack_irq_base:
+_stack_irq_base:
 .space 1024
 .balign 8
-__stack_irq_top:
+_stack_irq_top:
 .balign 8
-__stack_abt_base:
+_stack_abt_base:
 .space 1024
 .balign 8
-__stack_abt_top:
+_stack_abt_top:
 .balign 8
-__stack_und_base:
+_stack_und_base:
 .space 1024
 .balign 8
-__stack_und_top:
+_stack_und_top:
 .balign 64
 
-.global __thread_stack_pool_base
-.global __thread_stack_pool_end
+.global _thread_stack_pool_base
+.global _thread_stack_pool_end
 
-__thread_stack_pool_base:
+_thread_stack_pool_base:
 .space STACK_SIZE * MAX_THREADS
 .balign 8
-__thread_stack_pool_end:
+_thread_stack_pool_end:

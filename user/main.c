@@ -28,9 +28,10 @@ void worker_thread(void * args) {
 
 void main(void) {
 	test_user_main();
-
+	
 	while(true) {
 		char c = syscall_getc();
 		syscall_create_thread(worker_thread, &c, sizeof(c));
 	}
+	
 }

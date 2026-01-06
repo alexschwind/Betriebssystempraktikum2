@@ -81,7 +81,7 @@ void kprintf(const char *format, ...)
 			continue;
 		}
 
-		++format; // skip '%'
+		++format; 
 
 		if (*format == '%') {
 			uart_putc('%');

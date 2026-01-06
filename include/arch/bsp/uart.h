@@ -37,7 +37,7 @@ void uart_puts(const char *str);
 bool uart_getc_nonblocking(char *out);
 bool uart_peekc(char *out);
 bool uart_buffer_putc(char c);
-bool uart_rx_data_available(void);
+bool uart_rx_data_available_and_buffer_not_full(void);
 char uart_rx_get_char(void);
 
 void	     uart_enable_rx_interrupt(void);

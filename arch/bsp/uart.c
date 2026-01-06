@@ -11,20 +11,20 @@ create_ringbuffer(uart_rx_buffer, UART_INPUT_BUFFER_SIZE);
 
 void uart_init(void)
 {
-	gpio_set_alt_function(14, 0); // Set GPIO14 to ALT0 (UART0 TX)
-	gpio_set_alt_function(15, 0); // Set GPIO15 to ALT0 (UART0 RX)
+	gpio_set_alt_function(14, 0); 
+	gpio_set_alt_function(15, 0); 
 
-	uart->cr &= ~1u; // disable UART
-	while (uart->fr & (1u << 3)) {} // wait for end of transmission 
-	uart->imsc = 0u; // disable all interrupts
-	uart->icr  = 0x7FFu; // clear all interrupts
-	uart->lcrh &= ~(1u << 4); // flush and disable FIFOs
+	uart->cr &= ~1u; 
+	while (uart->fr & (1u << 3)) {} 
+	uart->imsc = 0u;
+	uart->icr  = 0x7FFu; 
+	uart->lcrh &= ~(1u << 4); 
 
-	uart->lcrh |= (1u << 4); // Enable fifos
-	uart->ifls = (1u << 4); // set RX FIFO interrupt trigger to 1/2 full (bits 5:3 = 0b010)
-	uart->cr |= (1u << 9); // enable RX
-	uart->cr |= (1u << 8); // enable TX
-	uart->cr |= 1u; // enable UART
+	uart->lcrh |= (1u << 4); 
+	uart->ifls = (1u << 4); 
+	uart->cr |= (1u << 9); 
+	uart->cr |= (1u << 8); 
+	uart->cr |= 1u; 
 }
 
 void uart_enable_rx_interrupt(void)
@@ -53,8 +53,8 @@ void uart_rx_into_buffer(void)
 	}
 }
 
-bool uart_rx_data_available(void){
-	return !(uart->fr & (1u << 4));
+bool uart_rx_data_available_and_buffer_not_full(void){
+	return !(uart->fr & (1u << 4)) && !buff_is_full(uart_rx_buffer);
 }
 
 char uart_rx_get_char(void) {

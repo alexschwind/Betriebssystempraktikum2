@@ -16,20 +16,25 @@
 
 #include <lib/exception_print.h>
 
+#include <syscall.h>
+
+#define MODE_MASK 0x1Fu
+#define USER_MODE_BITS 0x10u
+#define SYSTEM_MODE_BITS 0x1Fu
+
 static void panic(void) __attribute__((noreturn));
 static uint32_t read_dfsr(void);
 static uint32_t read_dfar(void);
 static uint32_t read_ifsr(void);
 static uint32_t read_ifar(void);
 static bool is_user_thread(const context_frame_t *ctx);
-static void trigger_kernel_svc(void) __attribute__((noreturn));
 
-static inline context_frame_t *current_ctx_storage(void)
+context_frame_t *current_ctx_storage(void)
 {
 	return g_current ? &g_current->ctx_storage : NULL;
 }
 
-static inline void save_current_context(context_frame_t *ctx)
+void save_current_context(context_frame_t *ctx)
 {
 	context_frame_t *dst = current_ctx_storage();
 	if (dst && ctx) {
@@ -37,7 +42,7 @@ static inline void save_current_context(context_frame_t *ctx)
 	}
 }
 
-static inline void restore_current_context(context_frame_t *ctx)
+void restore_current_context(context_frame_t *ctx)
 {
 	context_frame_t *src = current_ctx_storage();
 	if (src && ctx) {
@@ -45,7 +50,7 @@ static inline void restore_current_context(context_frame_t *ctx)
 	}
 }
 
-static inline context_frame_t *report_context(context_frame_t *fallback)
+context_frame_t *report_context(context_frame_t *fallback)
 {
 	context_frame_t *ctx = current_ctx_storage();
 	return ctx ? ctx : fallback;
@@ -53,15 +58,14 @@ static inline context_frame_t *report_context(context_frame_t *fallback)
 
 void irq_handler(context_frame_t *ctx)
 {
-	// Save old context into tcb if available
 	save_current_context(ctx);
 
 	if (irq_get_uart_pending()) {
 		if (uart_get_rx_interrupt_status()) {
-			while (uart_rx_data_available()) {
+			while (uart_rx_data_available_and_buffer_not_full()) {
 				char c = uart_rx_get_char();
 				if (c == 'S') {
-					trigger_kernel_svc();
+					syscall_undefined();
 					continue;
 				}
 				if (!uart_buffer_putc(c)) {
@@ -69,7 +73,6 @@ void irq_handler(context_frame_t *ctx)
 				}
 			}
 		}
-		uart_clear_interrupt();
 
 		while (scheduler_has_waiting_input()) {
 			char available;
@@ -98,7 +101,6 @@ void irq_handler(context_frame_t *ctx)
 		scheduler_pick_next();
 	}
 
-	// Restore new context from tcb
 	restore_current_context(ctx);
 }
 
@@ -241,11 +243,11 @@ void data_abort_handler(context_frame_t *ctx)
 	__asm__ volatile("cpsie i" ::: "memory");
 }
 
-static void panic(void)	
+__attribute__((noreturn)) static void panic(void)	
 {
 	__asm__ volatile("cpsid if" : : : "memory");
 
-	uart_putc('\4'); // End-of-transmission character to signal panic
+	uart_putc('\4');
 
 	for (;;) {
 		__asm__ volatile("wfi" ::: "memory");
@@ -286,20 +288,6 @@ static bool is_user_thread(const context_frame_t *ctx)
 	if (!ctx) {
 		return false;
 	}
-	uint32_t mode = ctx->cpsr_usr & 0x1Fu;
-	return mode == 0x10u || mode == 0x1Fu; // TODO maybe only user mode
-}
-
-static void trigger_kernel_svc(void)
-{
-	register uint32_t r0 __asm__("r0") = (uint32_t)0u;
-    register uint32_t r1 __asm__("r1") = 0u;
-    register uint32_t r2 __asm__("r2") = 0u;
-    register uint32_t r3 __asm__("r3") = 0u;
-
-    __asm__ volatile ("svc #0"
-                      : "+r"(r0)
-                      : "r"(r1), "r"(r2), "r"(r3)
-                      : "memory");
-	__builtin_unreachable();
+	uint32_t mode = ctx->cpsr_usr & MODE_MASK;
+	return mode == USER_MODE_BITS || mode == SYSTEM_MODE_BITS;
 }

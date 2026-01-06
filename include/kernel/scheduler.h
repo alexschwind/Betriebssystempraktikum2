@@ -34,10 +34,10 @@ typedef struct context_frame {
     uint32_t r10;
     uint32_t r11;
     uint32_t r12;
-    uint32_t lr_usr;    // user-mode LR (r14)
-    uint32_t sp_usr;    // user-mode SP (r13)
-    uint32_t lr_exc;    // exception LR = user PC + 4
-    uint32_t cpsr_usr;  // user-mode CPSR
+    uint32_t lr_usr;
+    uint32_t sp_usr;
+    uint32_t lr_exc;
+    uint32_t cpsr_usr;
 } context_frame_t;
 
 typedef struct tcb {
@@ -63,6 +63,6 @@ bool scheduler_has_waiting_input(void);
 tcb_t *scheduler_pop_next_input_waiter(void);
 __attribute__((noreturn)) void scheduler_start(void);
 
-#endif /* __ASSEMBLER__ */
+#endif
 
 #endif

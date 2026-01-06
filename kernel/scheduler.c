@@ -12,42 +12,41 @@
 
 #include <lib/list.h>
 
+#define USER_MODE_CPSR 0b10000
+#define FIQ_DISABLE    (1u << 6)
+
 extern void main(void) __attribute__((weak));
 
 static tcb_t g_threads[MAX_THREADS];
-extern uint8_t __thread_stack_pool_base[];
+extern uint8_t _thread_stack_pool_base[];
 static unsigned int g_rr_cursor = 1;
 tcb_t *g_current = NULL;
 static tcb_t *g_idle_tcb = NULL;
 static list_node g_getc_wait_list_head = { &g_getc_wait_list_head, &g_getc_wait_list_head };
 
-static inline uint8_t *thread_stack_base(unsigned int idx)
+uint8_t *thread_stack_base(unsigned int idx)
 {
-    if (idx >= MAX_THREADS) {
-        return NULL;
-    }
-
-    return __thread_stack_pool_base + ((size_t)idx * STACK_SIZE);
+    return _thread_stack_pool_base + ((size_t)idx * STACK_SIZE);
 }
 
-static inline uint8_t *thread_stack_top(unsigned int idx)
+uint8_t *thread_stack_top(unsigned int idx)
 {
     uint8_t *base = thread_stack_base(idx);
-    return base ? base + STACK_SIZE : NULL;
+    return base + STACK_SIZE;
 }
-static inline void list_node_init(list_node *node)
+void list_node_init(list_node *node)
 {
     node->next = node;
     node->prev = node;
 }
 
-static inline tcb_t *tcb_from_wait_node(list_node *node)
+tcb_t *tcb_from_wait_node(list_node *node)
 {
     return (tcb_t *)((char *)node - offsetof(tcb_t, wait_node));
 }
 
 
-static void idle_thread_fn(void)
+__attribute__((noreturn)) static void idle_thread_fn(void)
 {
     for (;;) {
         asm volatile ("wfi");
@@ -86,7 +85,7 @@ static void create_initial_user_thread(void)
 
 void scheduler_init(void)
 {
-    memset(__thread_stack_pool_base, 0, STACK_SIZE * MAX_THREADS);
+    memset(_thread_stack_pool_base, 0, STACK_SIZE * MAX_THREADS);
 
     for (int i = 0; i < MAX_THREADS; ++i) {
         g_threads[i].state = T_UNUSED;
@@ -97,7 +96,6 @@ void scheduler_init(void)
         list_node_init(&g_threads[i].wait_node);
     }
 
-    // Create idle thread
     g_idle_tcb = &g_threads[0];
     g_idle_tcb->state = T_RUNNING;
     memset(g_idle_tcb->stack_top, 0, STACK_SIZE);
@@ -106,8 +104,7 @@ void scheduler_init(void)
 
     g_idle_tcb->ctx_storage.sp_usr   = (uint32_t)g_idle_tcb->stack_top;
     g_idle_tcb->ctx_storage.lr_exc   = (uint32_t)idle_thread_fn + 4;
-    g_idle_tcb->ctx_storage.cpsr_usr = 0b10000       // user mode
-                                 | (1u << 6);    // FIQ disable
+    g_idle_tcb->ctx_storage.cpsr_usr = USER_MODE_CPSR | FIQ_DISABLE;
 
     create_initial_user_thread();
 }
@@ -132,7 +129,6 @@ void scheduler_pick_next(void)
     g_current = g_idle_tcb;
 }
 
-// Called from kernel (SVC mode)
 bool scheduler_thread_create(void(* func)(void *), const void * arg, unsigned int arg_size)
 {
     tcb_t* t = NULL;
@@ -153,7 +149,7 @@ bool scheduler_thread_create(void(* func)(void *), const void * arg, unsigned in
     }
     if (!t) {
         kprintf("Could not create thread.");
-        return false; // No free slots
+        return false; 
     }
 
     if (arg_size > STACK_SIZE) {
@@ -163,7 +159,6 @@ bool scheduler_thread_create(void(* func)(void *), const void * arg, unsigned in
 
     memset(t->stack_top, 0, STACK_SIZE);
 
-    // Start from top of stack (ARM stacks grow downward)
     uintptr_t sp = (uintptr_t)t->stack_top;
 
     uintptr_t arg_ptr = 0;
@@ -175,12 +170,11 @@ bool scheduler_thread_create(void(* func)(void *), const void * arg, unsigned in
     }
     
     memset(&t->ctx_storage, 0, sizeof(context_frame_t));
-    t->ctx_storage.r0   = (uint32_t)func;                 // function to run
-    t->ctx_storage.r1   = (uint32_t)arg_ptr;              // argument pointer (copied onto stack)
+    t->ctx_storage.r0   = (uint32_t)func; 
+    t->ctx_storage.r1   = (uint32_t)arg_ptr;
     t->ctx_storage.sp_usr   = (uint32_t)sp;
     t->ctx_storage.lr_exc   = (uint32_t)thread_trampoline + 4;
-    t->ctx_storage.cpsr_usr = 0b10000       // user mode
-                            | (1u << 6);    // FIQ disable
+    t->ctx_storage.cpsr_usr = USER_MODE_CPSR | FIQ_DISABLE;
     t->state = T_RUNNING;
     t->sleep_ticks = 0u;
     list_node_init(&t->wait_node);

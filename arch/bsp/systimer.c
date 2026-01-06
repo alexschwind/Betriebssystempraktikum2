@@ -2,7 +2,7 @@
 
 volatile struct systimer *const systimer = (struct systimer *)SYSTIMER_BASE;
 
-static inline int systimer_valid_channel(unsigned int timer)
+int systimer_valid_channel(unsigned int timer)
 {
 	return timer < 4u;
 }

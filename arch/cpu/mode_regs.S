@@ -5,11 +5,11 @@
 read_mode_specific_registers_hw:
 	push {r4-r11, lr}
 
-	mrs r4, cpsr			@ save original cpsr
+	mrs r4, cpsr		
 
 	mov r5, r4
 	bic r5, r5, #0x1F
-	orr r5, r5, #0x1F		@ system mode
+	orr r5, r5, #0x1F		
 	msr cpsr_c, r5
 
 	mov r2, lr
@@ -21,7 +21,7 @@ read_mode_specific_registers_hw:
 
 	mov r5, r4
 	bic r5, r5, #0x1F
-	orr r5, r5, #0x12		@ irq mode
+	orr r5, r5, #0x12	
 	msr cpsr_c, r5
 	mov r2, lr
 	str r2, [r0, #12]
@@ -32,7 +32,7 @@ read_mode_specific_registers_hw:
 
 	mov r5, r4
 	bic r5, r5, #0x1F
-	orr r5, r5, #0x17		@ abort mode
+	orr r5, r5, #0x17		
 	msr cpsr_c, r5
 	mov r2, lr
 	str r2, [r0, #24]
@@ -43,7 +43,7 @@ read_mode_specific_registers_hw:
 
 	mov r5, r4
 	bic r5, r5, #0x1F
-	orr r5, r5, #0x1B		@ undefined mode
+	orr r5, r5, #0x1B		
 	msr cpsr_c, r5
 	mov r2, lr
 	str r2, [r0, #36]
@@ -54,7 +54,7 @@ read_mode_specific_registers_hw:
 
 	mov r5, r4
 	bic r5, r5, #0x1F
-	orr r5, r5, #0x13		@ supervisor mode
+	orr r5, r5, #0x13		
 	msr cpsr_c, r5
 	mov r2, lr
 	str r2, [r0, #48]
@@ -63,7 +63,7 @@ read_mode_specific_registers_hw:
 	mrs r2, spsr
 	str r2, [r0, #56]
 
-	msr cpsr_c, r4			@ restore cpsr
+	msr cpsr_c, r4			
 
 	pop {r4-r11, pc}
 .size read_mode_specific_registers_hw, .-read_mode_specific_registers_hw

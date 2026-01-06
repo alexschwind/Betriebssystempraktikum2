@@ -1,70 +1,59 @@
 .section .init
 .extern _vector_table
-.extern __stack_svc_top
-.extern __stack_irq_top
-.extern __stack_abt_top
-.extern __stack_und_top
-.extern __stack_sys_top
+.extern _stack_svc_top
+.extern _stack_irq_top
+.extern _stack_abt_top
+.extern _stack_und_top
+.extern _stack_sys_top
 
 #include <kernel/scheduler.h>
 
 .global _bsprak
 _bsprak:
-    /* Stacks für alle Modi vorbereiten */
-	/* Wir benutzen den FIQ noch nicht */
-	cpsid if                  /* Disable IRQ and FIQ */
+	cpsid if                  
 
-	cps	#0x13                 /* Switch to supervisor mode */
-	ldr sp, =__stack_svc_top
-	cps	#0x12                 /* Switch to IRQ mode */
-	ldr sp, =__stack_irq_top
-	cps	#0x17                 /* Switch to ABT mode */
-	ldr sp, =__stack_abt_top
-	cps	#0x1b                 /* Switch to UND mode */
-	ldr sp, =__stack_und_top
-	cps	#0x1f                 /* Switch to system mode */
-	ldr sp, =__stack_sys_top
+	cps	#0x13                 
+	ldr sp, =_stack_svc_top
+	cps	#0x12                 
+	ldr sp, =_stack_irq_top
+	cps	#0x17                 
+	ldr sp, =_stack_abt_top
+	cps	#0x1b                 
+	ldr sp, =_stack_und_top
+	cps	#0x1f                
+	ldr sp, =_stack_sys_top
 	
-	/* Exception Vector Table adresse setzen */
 	ldr r0, =_vector_table
 	mcr p15, 0, r0, c12, c0, 0
 
-	cps	#0x13        /* Run kernel in supervisor mode */
-	bl  start_kernel /* This never returns */
+	cps	#0x13        
+	bl  start_kernel 
 
 .global scheduler_first_context_restore
-@ r0 = ctx (pointer to context_frame_t)
-@ must be called from SVC mode
 scheduler_first_context_restore:
 	cpsid if
 
 	sub     sp, sp, #CTX_FRAME_SIZE
-	mov     r1, r0              @ r1 = &first_tcb->ctx (src)
-    mov     r0, sp              @ r0 = frame_on_stack (dst)
+	mov     r1, r0             
+    mov     r0, sp             
     mov     r2, #CTX_FRAME_SIZE
     bl      memcpy
 
-	@ Load CPSR for new thread (saved in slot 16) into SPSR_irq
 	ldr   r1, [sp, #(16*4)]
     msr   spsr_fsxc, r1
 
-	@ Load exception LR (slot 15) into lr
 	ldr   r1, [sp, #(15*4)]
     mov   lr, r1
 
-	@ Restore user/system LR+SP
-	ldr   r1, [sp, #(14*4)]         @ user SP
-	ldr   r2, [sp, #(13*4)]         @ user LR
+	ldr   r1, [sp, #(14*4)]         
+	ldr   r2, [sp, #(13*4)]         
 	cps   #0x1f
-	mov   sp, r1                    @ new thread's user/system SP
-	mov   lr, r2                    @ new thread's user/system LR
-	cps   #0x13                     @ back to SVC mode
+	mov   sp, r1                    
+	mov   lr, r2                    
+	cps   #0x13                  
 
-    @ Now restore r0-r12 from slots 0..12
     ldmia sp, {r0-r12}
 
-    @ Free the frame from IRQ stack
     add   sp, sp, #CTX_FRAME_SIZE 
 
-    @ Return from IRQ into new thread context
     subs  pc, lr, #4
