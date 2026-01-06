@@ -2,7 +2,7 @@
 
 #define IRQ_REG_BASE (IRQ_BASE + 0x200u)
 
-volatile struct irq_controller *irq_regs(void)
+static volatile struct irq_controller *irq_regs(void)
 {
 	return (volatile struct irq_controller *)IRQ_REG_BASE;
 }

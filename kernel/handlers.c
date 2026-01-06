@@ -29,12 +29,12 @@ static uint32_t read_ifsr(void);
 static uint32_t read_ifar(void);
 static bool is_user_thread(const context_frame_t *ctx);
 
-context_frame_t *current_ctx_storage(void)
+static context_frame_t *current_ctx_storage(void)
 {
 	return g_current ? &g_current->ctx_storage : NULL;
 }
 
-void save_current_context(context_frame_t *ctx)
+static void save_current_context(context_frame_t *ctx)
 {
 	context_frame_t *dst = current_ctx_storage();
 	if (dst && ctx) {
@@ -42,7 +42,7 @@ void save_current_context(context_frame_t *ctx)
 	}
 }
 
-void restore_current_context(context_frame_t *ctx)
+static void restore_current_context(context_frame_t *ctx)
 {
 	context_frame_t *src = current_ctx_storage();
 	if (src && ctx) {
@@ -50,7 +50,7 @@ void restore_current_context(context_frame_t *ctx)
 	}
 }
 
-context_frame_t *report_context(context_frame_t *fallback)
+static context_frame_t *report_context(context_frame_t *fallback)
 {
 	context_frame_t *ctx = current_ctx_storage();
 	return ctx ? ctx : fallback;

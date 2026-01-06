@@ -14,7 +14,7 @@ enum syscall_id {
 
 typedef enum syscall_id syscall_id_t;
 
-static inline uint32_t syscall_invoke(syscall_id_t id, uint32_t arg1, uint32_t arg2, uint32_t arg3)
+static uint32_t syscall_invoke(syscall_id_t id, uint32_t arg1, uint32_t arg2, uint32_t arg3)
 {
     register uint32_t r0 __asm__("r0") = (uint32_t)id;
     register uint32_t r1 __asm__("r1") = arg1;

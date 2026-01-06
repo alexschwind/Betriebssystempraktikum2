@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-syscall_result_t make_result(uint32_t value, bool reschedule, bool advance_pc)
+static syscall_result_t make_result(uint32_t value, bool reschedule, bool advance_pc)
 {
 	syscall_result_t result = {
 		.value = value,
@@ -20,7 +20,7 @@ syscall_result_t make_result(uint32_t value, bool reschedule, bool advance_pc)
 	return result;
 }
 
-syscall_result_t make_unhandled(void)
+static syscall_result_t make_unhandled(void)
 {
 	syscall_result_t result = {
 		.value = 0u,

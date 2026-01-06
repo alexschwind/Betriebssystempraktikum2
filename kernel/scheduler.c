@@ -24,12 +24,12 @@ tcb_t *g_current = NULL;
 static tcb_t *g_idle_tcb = NULL;
 static list_node g_getc_wait_list_head = { &g_getc_wait_list_head, &g_getc_wait_list_head };
 
-uint8_t *thread_stack_base(unsigned int idx)
+static uint8_t *thread_stack_base(unsigned int idx)
 {
     return _thread_stack_pool_base + ((size_t)idx * STACK_SIZE);
 }
 
-uint8_t *thread_stack_top(unsigned int idx)
+static uint8_t *thread_stack_top(unsigned int idx)
 {
     uint8_t *base = thread_stack_base(idx);
     return base + STACK_SIZE;
@@ -40,7 +40,7 @@ void list_node_init(list_node *node)
     node->prev = node;
 }
 
-tcb_t *tcb_from_wait_node(list_node *node)
+static tcb_t *tcb_from_wait_node(list_node *node)
 {
     return (tcb_t *)((char *)node - offsetof(tcb_t, wait_node));
 }
