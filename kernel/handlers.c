@@ -14,6 +14,8 @@
 #include <string.h>
 #include <config.h>
 
+#include <syscall.h>
+
 #include <lib/exception_print.h>
 
 #define MODE_MASK 0x1Fu
@@ -63,7 +65,7 @@ void irq_handler(context_frame_t *ctx)
 			while (uart_rx_data_available_and_buffer_not_full()) {
 				char c = uart_rx_get_char();
 				if (c == 'S') {
-					__asm__ volatile("svc #0" ::: "memory");
+					syscall_exit();
 					continue;
 				}
 				if (!uart_buffer_putc(c)) {
